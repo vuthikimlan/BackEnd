@@ -123,6 +123,38 @@ class UserController {
             res.status(500).json(error)
         }
     }
+
+    async filterUser(req, res) {
+        try {
+            const {name, username, email, accountNumber, accountName} = req.body
+            let filter = {}
+
+            if(name) filter.name = {$regex: new RegExp(name, 'i')}
+            if(username) filter.username = {$regex: new RegExp(username, 'i')}
+            if(email) filter.email = {$regex: new RegExp(email, 'i')}
+            if(accountNumber) filter.accountNumber = {$regex: new RegExp(accountNumber, 'i')}
+            if(accountName) filter.accountName = {$regex: new RegExp(accountName, 'i')}
+
+            const result = await User.find(filter)
+            const totalUser = await User.countDocuments(filter)
+            res.json(
+                {
+                    success: true,
+                    error: null,
+                    statusCode: 200,
+                    data: {
+                        total: totalUser,
+                        items: result
+                    }
+
+                }
+            )
+        } catch (error) {
+            res.status(500).json({
+                error: 'Có lỗi trong quá trình xử lý yêu cầu'
+            })
+        }
+    }
 }
 
 module.exports = new UserController
