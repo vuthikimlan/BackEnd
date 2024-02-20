@@ -46,14 +46,14 @@ class UserController {
     } 
 
     async getAllUser(req, res) {
-        const totalStudent = await User.countDocuments()
+        const totalUser = await User.countDocuments()
         const items = await User.find({}).populate('courses')
         res.status(200).json({
             success: true,
             error: null,
             statusCode: 200,
             data: {
-                total: totalStudent,
+                total: totalUser,
                 items
             }
         })

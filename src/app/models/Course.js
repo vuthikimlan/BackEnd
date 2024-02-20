@@ -15,12 +15,15 @@ const courseSchema = new Schema({
     },
     field: {
         type: String,
+        require: true,
     },
     category: {
         type: String,
+        require: true,
     },
     price: {
         type: Number,
+        require: true
     },
     lessonContent: {
         type: [String],
