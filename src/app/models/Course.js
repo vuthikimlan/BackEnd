@@ -69,10 +69,10 @@ const courseSchema = new Schema({
             type: Boolean,
         },
         timeOfSection: {
-            type: Date,
+            type: Number,
         },
         totalTime: {
-            type: Date,
+            type: Number,
         },
         totalLecture: {
             type: Number
