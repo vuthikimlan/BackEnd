@@ -6,12 +6,16 @@ const updateMiddleware = require('../app/middleware/User/updateMiddleware')
 
 router.get('/getAll', UserController.getAllUser)
 router.get('/:id', UserController.getUserById)
+router.get('/cart/:id', UserController.getCart)
 
 router.post('/create', addMiddleware ,UserController.addUser)
 router.post('/filter', UserController.filterUser)
 
+router.post('/addCart', UserController.addToCart)
+
 router.put('/:id', updateMiddleware ,UserController.updateUser)
 
 router.delete('/:id', UserController.deleteUser)
+router.delete('/cart/remove', UserController.deleteCart)
 
 module.exports = router

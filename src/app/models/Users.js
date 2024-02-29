@@ -35,8 +35,15 @@ const userSchema = new Schema({
             ref: 'Course'
         }
     ],
-    shoppingCart: [ {
-        type: Schema.Types.ObjectId
+    shoppingCart: [{
+        courseId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Course'
+        },
+        quantity: {
+            type: Number,
+            default: 1,
+        }
     }],
     teacher: {
         specialization: {
@@ -66,12 +73,17 @@ const userSchema = new Schema({
             type: String,
         }
 
-    }
+    },
+    resetPasswordToken: {
+        type: String
+    },
+    resetPasswordTokenExpirse: {
+        type: String
+    },
 
 
 },{
     timestamps: true,
 })
-
 
 module.exports = mongoose.model('User', userSchema)

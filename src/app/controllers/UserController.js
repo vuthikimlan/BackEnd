@@ -2,10 +2,16 @@ const { validationResult } = require('express-validator')
 const Course = require('../models/Course')
 const User = require('../models/Users')
 const { isValidObjectId } = require('mongoose')
+const { getIdUser } = require('../../service/getIdUser')
 
 class UserController {
     async addUser(req, res) {
         try {
+
+            const {specialization, experience, 
+                facebook, pendingEarning, paidEarning,
+                accountNumber, accountName,
+                bankCode } = req.body
 
             const errors = validationResult(req)
             if(!errors.isEmpty()) {
@@ -19,8 +25,24 @@ class UserController {
                     }
                 })
             }
+
+            const newUserData = { ...req.body, 
+                teacher:{
+                    specialization: specialization,
+                    experience:experience,
+                    facebook: facebook,
+                    pendingEarning: pendingEarning,
+                    paidEarning: paidEarning,
+                }, 
+                paymentMethod:{
+                    accountNumber: accountNumber,
+                    accountName: accountName,
+                    bankCode: bankCode,
+
+                }
+            }
             
-            const newUser = new User(req.body)
+            const newUser = new User(newUserData)
     
             const courses =  await Course.find({ _id: { $in: req.body.courses } })
     
@@ -126,14 +148,16 @@ class UserController {
 
     async filterUser(req, res) {
         try {
-            const {name, username, email, accountNumber, accountName} = req.body
+            const {name, username, email, accountNumber, accountName, role} = req.body
             let filter = {}
 
+            // So sánh không bằng nhau, có thể tìm với bất kỳ ký tự là viết hoa hay ko
             if(name) filter.name = {$regex: new RegExp(name, 'i')}
             if(username) filter.username = {$regex: new RegExp(username, 'i')}
             if(email) filter.email = {$regex: new RegExp(email, 'i')}
             if(accountNumber) filter.accountNumber = {$regex: new RegExp(accountNumber, 'i')}
             if(accountName) filter.accountName = {$regex: new RegExp(accountName, 'i')}
+            if(role) filter.role = {$regex: new RegExp(role, 'i')}
 
             const result = await User.find(filter)
             const totalUser = await User.countDocuments(filter)
@@ -153,6 +177,94 @@ class UserController {
             res.status(500).json({
                 error: 'Có lỗi trong quá trình xử lý yêu cầu'
             })
+        }
+    }
+
+    async addToCart (req, res) {
+        try {
+            const {courseId} = req.body
+            const userId = getIdUser(req)
+            const user = await User.findById(userId)
+
+            const existingUser = user?.shoppingCart?.find(item => item.courseId.toString() === courseId)
+
+            if(existingUser) {
+                return res.status(201).json({
+                    message: "Khóa học đã tồn tại trong giỏ hàng"
+                })
+            } else {
+                const newCartItem = {
+                    courseId: courseId,
+                }
+                user.shoppingCart.push(newCartItem)
+            }
+            await user.save()
+
+            res.status(200).json({
+                message: "Thêm vào giỏ hàng thành công",
+                data: user.shoppingCart
+            })
+            
+        } catch (error) {
+            console.log('error', error);
+        }
+
+    }
+
+    async getCart (req, res) {
+        try {
+            const userId = req.params.id
+            const user = await User.findById(userId)
+    
+            // Tìm id của khóa học 
+            const idCourse = user.shoppingCart.map((e) => {return e.courseId})
+            // Từ id của khóa học lấy tất cả các thông tin của khóa học
+            const courses = await Course.find({ _id: { $in: idCourse} })
+            // Lấy các thông tin cần thiết lưu vào data
+            const data = courses.map(e => {
+                return {
+                    id: e._id,
+                    name: e.name,
+                    image: e.image,
+                    price: e.price,
+                }
+            })
+    
+           res.status(200).json({
+            success: true,
+            error: null,
+            statusCode: 200,
+            data: data
+           })
+        }
+        catch (error) {
+            res.status(500).json(error)
+        }
+    }
+
+    async deleteCart (req, res) {
+        try {
+            const {courseId} = req.body
+            const userId = getIdUser(req)
+            const user = await User.findById(userId)
+
+            //Kiểm tra giỏ hàng của người dùng có tồn tại không
+            if(!user.shoppingCart || user.shoppingCart === 0) {
+                return res.status(200).json({
+                    message: "Giỏ hàng trống"
+                })
+            }
+
+            user.shoppingCart = user.shoppingCart.filter(item => item.courseId.toString() != courseId)
+            
+            await user.save()
+
+            res.status(200).json({
+                message: "Xóa khóa học khỏi giỏ hàng thành công"
+            })
+            
+        } catch (error) {
+            
         }
     }
 }

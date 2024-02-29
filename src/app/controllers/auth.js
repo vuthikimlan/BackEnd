@@ -13,10 +13,10 @@ class AuthController {
                 const isMatched = bcrypt.compare(password, existingUser.password)
                 if(isMatched) {
                     const data = {
+                        _id: existingUser._id,
                         name: existingUser.name,
                         username: existingUser.username,
-                        email: existingUser.email,
-                        password: existingUser.password
+                        role: existingUser.role,
                     }
 
                     let token = jwt.sign(
@@ -33,7 +33,7 @@ class AuthController {
                         error: null,
                         data: {
                             ...existingUser.toObject(),
-                            password: "not show",
+                            // password: "not show",
                             token: token,
                         }
                     })
@@ -51,7 +51,7 @@ class AuthController {
 
     async register(req, res) {
         try {
-            const {name, username, email, password} = req.body
+            const {name, username, email, password, role} = req.body
             
             // validate dữ liệu
 
@@ -61,6 +61,7 @@ class AuthController {
                 username: username,
                 email: email,
                 password: hashedPassword,
+                role: role,
             })
             
             const savedUser = await newUser.save()
@@ -83,3 +84,4 @@ class AuthController {
 }
 
 module.exports = new AuthController
+

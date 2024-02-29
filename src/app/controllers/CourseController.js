@@ -1,10 +1,43 @@
 const { isValidObjectId } = require('mongoose')
 const Course = require('../models/Course')
+const jwt = require('jsonwebtoken')
 
 class CourseController {
     async addCourse(req, res) {
         try {
-            const newCourse = new Course(req.body)
+
+            const {partName, lectureName, video, 
+                 document, isFree, timeOfSection,
+                 totalLecture
+            } = req.body
+
+            //Khi tạo khóa học cần biết ai là người tạo khóa học
+            // Khi người dùng đăng nhập thì sẽ  lấy thông tin của
+            // người dùng và đưa vào trường createBy
+            const token = req.headers?.authorization?.split(" ")[1]
+
+            const userInfor = jwt.verify(token, "This is JWT")  
+            
+            const name = userInfor.data.name
+            const username = userInfor.data.username
+
+            const newCoureData =  { ...req.body, 
+                createdBy:{
+                    name: name,
+                    username: username,
+                },
+                lectures: {
+                    partName: partName,
+                    lectureName: lectureName,
+                    video: video,
+                    document: document,
+                    isFree: isFree,
+                    timeOfSection: timeOfSection,
+                    totalLecture: totalLecture,
+                }
+            }
+
+            const newCourse = new Course(newCoureData)
             
             const saveCourse = await newCourse.save()
 
@@ -22,7 +55,7 @@ class CourseController {
 
     async getAllCourse(req, res) {
         const totalCourse = await Course.countDocuments()
-        const items = await Course.find({}).populate('users')
+        const items = await Course.find({}).populate('users') 
         res.status(200).json({
             success: true,
             error: null,
@@ -35,16 +68,20 @@ class CourseController {
     }
 
     async getCourseById(req, res) {
-        const _id = req.params._id
-        if(isValidObjectId(_id)) {
-            const course = await Course.findById({ _id: id}).populate('users')
+        try {
+            const _id = req.params.id
             
-            res.status(200).json({
-                success:true,
-                error:null,
-                statusCode: 200,
-                data: course
-            })
+            if(isValidObjectId(_id)) {
+                const course = await Course.findById({ _id: _id}).populate('users')
+                res.status(200).json({
+                    success:true,
+                    error:null,
+                    statusCode: 200,
+                    data: course
+                })
+            }
+        } catch (error) {
+            console.log('error', error);
         }
     }
 
@@ -76,7 +113,7 @@ class CourseController {
         try {
             await Course.deleteOne({_id: req.params.id})
             res.status(200).json({
-                message: "Xóa người dùng thành công"
+                message: "Xóa khóa học thành công"
             })
         } catch (error) {
             res.status(500).json(error)
@@ -89,8 +126,8 @@ class CourseController {
             let filter = {}
 
             if(name) filter.name = {$regex: new RegExp(name, 'i')}
-            if(field) filter.name = {$regex: new RegExp(field, 'i')}
-            if(category) filter.name = {$regex: new RegExp(category, 'i')}
+            if(field) filter.field = {$regex: new RegExp(field, 'i')}
+            if(category) filter.category = {$regex: new RegExp(category, 'i')}
 
             const result = await Course.find(filter)
             const totalCourse = await Course.countDocuments(filter)

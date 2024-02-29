@@ -78,12 +78,20 @@ const courseSchema = new Schema({
             type: Number
         }
     }],
-    users: [
+    users:[
         {
             type: Schema.Types.ObjectId,
             ref: 'User'
         }
     ],
+    createdBy: {
+        name: {
+            type: String,
+        },
+        username: {
+            type: String,
+        },
+    }
     
 
 },{

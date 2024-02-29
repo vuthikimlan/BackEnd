@@ -1,5 +1,4 @@
 const { body, check } = require("express-validator");
-const Users = require("../../models/Users");
 
 
 const updateMiddleware = async (req, res, next) => {
