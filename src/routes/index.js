@@ -5,6 +5,10 @@ const uploadRoute = require('./upload')
 const passwordRoute = require('./password')
 const blogRoute = require('./blog')
 const discountRoute = require('./discount')
+const orderRoute = require("./order")
+const paymentRoute = require("./payment")
+const commentRoute = require("./comment")
+
 
 function route(app){
     app.use('/user', userRoute)
@@ -20,6 +24,12 @@ function route(app){
     app.use('/blog', blogRoute)
 
     app.use('/discount', discountRoute)
+
+    app.use('/order', orderRoute)
+
+    app.use('/payment', paymentRoute)
+
+    app.use('/comment', commentRoute)
 }
 
 module.exports = route

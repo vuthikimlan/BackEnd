@@ -10,7 +10,7 @@ router.post('/filter', DiscountController.filterDiscount)
 
 router.put('/:id', DiscountController.updateDiscount)
 
-router.post('/:id', DiscountController.delDiscount)
+router.delete('/:id', DiscountController.delDiscount)
 
 
 module.exports = router

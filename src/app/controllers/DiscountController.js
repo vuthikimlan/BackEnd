@@ -1,10 +1,16 @@
 const { isValidObjectId } = require("mongoose");
 const Discount = require("../models/Discount")
+const nodeCron = require("node-cron");
 
 class DiscountController{
     async addDiscount(req, res) {
         try {
-            const newDiscount = new Discount(req.body)
+            const {expiryDate} = req.body
+            const expiry = Date.now() + expiryDate * 24 * 60 * 60 * 1000
+            const newDiscount = new Discount({
+                ...req.body,
+                expiryDate: expiry
+            })
 
             const saveDiscount = await newDiscount.save()
 
@@ -54,6 +60,23 @@ class DiscountController{
     
     async updateDiscount(req, res) {
         try {
+           nodeCron.schedule('0 0 * * *', async () => {
+                try {
+                    const currentDate = new Date()
+                    // Tìm tất cả các mã giảm giá đã hết hạn
+                    const expiriedDiscount = await Discount.find({expiryDate: { $lt: currentDate }})
+                    
+                    for (const discount of expiriedDiscount) {
+                        discount.active = false;
+                        await discount.save()
+                    }
+
+                } catch (error) {
+                    console.log(error);
+                }
+            })
+            if(req.body.expiryDate) req.body.expiryDate = Date.now() + +req.body.expiryDate * 24 * 60 * 60 * 1000
+            
             const updateDiscount = await Discount.findByIdAndUpdate(req.params.id, req.body, {new: true})
             if(!updateDiscount) {
                 return res.status(404).json({
@@ -69,7 +92,7 @@ class DiscountController{
                 success: true
             })
         } catch (error) {
-            res.status(500).json(error)
+           console.log('error', error);
         }
     }
     
@@ -80,7 +103,8 @@ class DiscountController{
                 message: "Xóa mã giảm giá thành công"
             })
         } catch (error) {
-            res.status(500).json(error)
+            // res.status(500).json(error)
+            console.log(error);
         }
     }
     

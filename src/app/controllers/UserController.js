@@ -69,7 +69,10 @@ class UserController {
 
     async getAllUser(req, res) {
         const totalUser = await User.countDocuments()
-        const items = await User.find({}).populate('courses')
+        const items = await User.find({})
+        .populate('courses')
+        .populate('coursesPosted', "-createdBy ")
+        .populate('order', "orderId totalPrice")
         res.status(200).json({
             success: true,
             error: null,
@@ -84,7 +87,7 @@ class UserController {
     async getUserById(req, res){
         const _id = req.params.id
         if(isValidObjectId(_id)) {
-            const user = await User.findById({_id: _id}).populate('courses')
+            const user = await User.findById({_id: _id}).populate('courses').populate('coursesPosted', "-createdBy")
             
             res.status(200).json({
                 success: true,
@@ -214,27 +217,13 @@ class UserController {
     async getCart (req, res) {
         try {
             const userId = req.params.id
-            const user = await User.findById(userId)
-    
-            // Tìm id của khóa học 
-            const idCourse = user.shoppingCart.map((e) => {return e.courseId})
-            // Từ id của khóa học lấy tất cả các thông tin của khóa học
-            const courses = await Course.find({ _id: { $in: idCourse} })
-            // Lấy các thông tin cần thiết lưu vào data
-            const data = courses.map(e => {
-                return {
-                    id: e._id,
-                    name: e.name,
-                    image: e.image,
-                    price: e.price,
-                }
-            })
+            const user = await User.findById(userId).select('shoppingCart').populate('shoppingCart.courseId', 'name image price')
     
            res.status(200).json({
             success: true,
             error: null,
             statusCode: 200,
-            data: data
+            data: user
            })
         }
         catch (error) {

@@ -6,6 +6,7 @@ const discountSchema = new Schema({
     discountCode: {
         type: String,
         require: true,
+        uppercase: true,
     },
     expiryDate: {
         type: Date,
@@ -15,9 +16,9 @@ const discountSchema = new Schema({
         type: Number,
         require: true
     },
-    status: {
-        type: String,
-        require: true,
+    active: {
+        type: Boolean,
+        default: true,
     },
 
 },{

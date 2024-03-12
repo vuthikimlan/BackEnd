@@ -4,7 +4,14 @@ const Blog = require('../models/Blog')
 class BlogController {
     async addBlog(req, res) {
         try {
-            const newBlog = new Blog(req.body)
+            const {nameAuthor, avatar} = req.body
+            const newBlogData = {...req.body,
+                author: {
+                    nameAuthor: nameAuthor,
+                    avatar: avatar,
+                }
+            }
+            const newBlog = new Blog(newBlogData)
     
             const saveBlog = await newBlog.save()
     

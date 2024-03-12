@@ -5,7 +5,12 @@ const Schema = mongoose.Schema
 const courseSchema = new Schema({
     name: {
         type: String,
-        require: true,
+        required: true,
+    },
+    slug:{
+        type: String,
+        unique: true,
+        lowercase: true
     },
     description: {
         type: String,
@@ -28,7 +33,7 @@ const courseSchema = new Schema({
     lessonContent: {
         type: [String],
     },
-    totalTime: {
+    totalTimeCourse: {
         type: Date,
     },
     conditionParticipate: {
@@ -39,9 +44,11 @@ const courseSchema = new Schema({
     },
     level:{
         type: String,
+        enum: ["PRIMARY", "INTERMEDIATE", "ALL LEVELS"]
     },
     isApprove: {
         type: Boolean,
+        default: false,
     },
     discounts: [
         {
@@ -59,7 +66,7 @@ const courseSchema = new Schema({
         video:{
             type: String,
         },
-        description: {
+        descriptionLectures: {
             type: String,
         },
         document: {
@@ -67,11 +74,12 @@ const courseSchema = new Schema({
         },
         isFree: {
             type: Boolean,
+            default: false,
         },
         timeOfSection: {
             type: Number,
         },
-        totalTime: {
+        totalTimeLectures: {
             type: Number,
         },
         totalLecture: {
@@ -91,6 +99,16 @@ const courseSchema = new Schema({
         username: {
             type: String,
         },
+    },
+    ratings: [
+        {
+            type: Schema.Types.ObjectId,
+            ref: 'Comment'
+        }
+    ],
+    totalRatings: {
+        type: Number,
+        default: 0,
     }
     
 

@@ -22,6 +22,7 @@ const userSchema = new Schema({
     role: {
         type: String,
         require: true,
+        enum: ["STUDENT", "TEACHER", "ADMIN"]
     },
     phone: {
         type: String,
@@ -30,6 +31,12 @@ const userSchema = new Schema({
         type: String,
     },
     courses: [
+        {
+            type: Schema.Types.ObjectId,
+            ref: 'Course'
+        }
+    ],
+    coursesPosted: [
         {
             type: Schema.Types.ObjectId,
             ref: 'Course'
@@ -63,6 +70,10 @@ const userSchema = new Schema({
         }
     },
     paymentMethod: {
+        brand: {
+            type: String,
+            enum: ["VISA", "TEACHER", "ADMIN"]
+        },
         accountNumber:{
             type: String,
         } ,
@@ -74,6 +85,12 @@ const userSchema = new Schema({
         }
 
     },
+    order: [
+        {
+            type: Schema.Types.ObjectId,
+            ref: 'Order'
+        }
+    ],
     resetPasswordToken: {
         type: String
     },

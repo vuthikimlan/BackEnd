@@ -7,12 +7,19 @@ const blogSchema = new Schema ({
         type: String,
         require: true,
     },
+    image:{
+        type: String,
+    },
     description: {
         type: String,
     },
-    author: {
-        type: String,
-        require: true,
+    author:{
+        nameAuthor: {
+            type: String,
+        },
+        avatar:{
+            type: String,
+        }
     },
     field: {
         type: String,
