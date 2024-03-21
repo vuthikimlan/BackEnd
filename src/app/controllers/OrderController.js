@@ -15,6 +15,7 @@ class OrderController {
 
             const orderId = Date.now().toString()
             
+            // tính giá tiền cho các khóa học trong giỏ hàng
             const totalPrice = user?.shoppingCart?.reduce((sum, el) =>
                 el.courseId.price * el.quantity + sum, 0
             )

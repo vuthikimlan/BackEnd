@@ -3,14 +3,15 @@ const Course = require('../models/Course')
 const jwt = require('jsonwebtoken')
 const { default: slugify } = require('slugify')
 const Users = require('../models/Users')
+const Discount = require('../models/Discount')
+const Field = require('../models/Field')
 
 class CourseController {
     async addCourse(req, res) {
         try {
 
             const {partName, lectureName, video, descriptionLectures,
-                 document, isFree, timeOfSection,
-                 totalLecture,totalTimeLectures
+                 document, isFree, timeOfSection, field, topic
             } = req.body
 
             if(req.body && req.body.name){
@@ -20,31 +21,36 @@ class CourseController {
             // Khi người dùng đăng nhập thì sẽ  lấy thông tin của
             // người dùng và đưa vào trường createBy
             const token = req.headers?.authorization?.split(" ")[1]
-
             const userInfor = jwt.verify(token, "This is JWT")  
             const userId = userInfor.data._id            
             const name = userInfor.data.name
             const username = userInfor.data.username
 
-            const newCoureData =  { ...req.body, 
+
+            // Tính tổng số bài giảng của khóa học 
+
+            const newCourseData =  { ...req.body, 
+                field,
+                topic ,
                 createdBy:{
                     name: name,
                     username: username,
                 },
-                lectures: {
+                parts: [{
                     partName: partName,
-                    lectureName: lectureName,
-                    descriptionLectures: descriptionLectures,
-                    video: video,
-                    document: document,
-                    isFree: isFree,
+                    lectures: [{
+                        lectureName: lectureName,
+                        descriptionLectures: descriptionLectures,
+                        video: video,
+                        document: document,
+                        isFree: isFree,
+                    }],
                     timeOfSection: timeOfSection,
-                    totalLecture: totalLecture,
-                    totalTimeLectures: totalTimeLectures,
-                }
+                }],
+                
             }
 
-            const newCourse = new Course(newCoureData)
+            const newCourse = new Course(newCourseData)
             
             const saveCourse = await newCourse.save()
 
@@ -53,6 +59,13 @@ class CourseController {
             const user = await Users.findById({_id: userId})
             user.coursesPosted.push(saveCourse._id);
             await user.save();
+
+            // Khi tạo thể loại mới thì thể loại đó cũng cần lưu lại khóa học đó
+            await Field.findByIdAndUpdate(
+                field, //Tim den the loai
+                {$push: {"topics.$[topicId].courses": newCourse._id}},
+                {arrayFilters: [{"topicId._id": topic}]}
+            )
 
             res.status(200).json({
                 data: saveCourse,
@@ -77,6 +90,8 @@ class CourseController {
                 select: 'name username ' // Chọn các trường cần hiển thị từ user
             }
         })
+        .populate('field', 'title')
+    
         res.status(200).json({
             success: true,
             error: null,
@@ -186,6 +201,59 @@ class CourseController {
             res.status(500).json({
                 error: 'Có lỗi trong quá trình xử lý yêu cầu'
             })
+        }
+    }
+
+    async applyDiscount(req, res) {
+        try {
+            const {courseId} = req.params
+            const {discountCode} = req.body
+
+            // Kiem tra ma giam gia co ton tai khong
+            const existingDiscountCode = await Discount.findOne({discountCode})
+            if (!existingDiscountCode) {
+                res.json({
+                    message: "Mã giảm giá không tồn tại"
+                });
+            } else if (existingDiscountCode.expiryDate < new Date()) {
+                res.json({
+                    message: "Mã giảm giá đã hết hạn sử dụng"
+                });
+            }
+
+            // Lấy thông tin khóa học
+            const course = await Course.findById(courseId)
+            // Ap dung ma giam gia cho khoa hoc
+            course.discountedCodeApplied = discountCode
+            course.discountedPrice = course.price * (1 - existingDiscountCode.discountRate / 100 )
+
+            const discountCourse = await course.save()
+            res.status(200).json({
+                success: true,
+                data: discountCourse
+            })
+            
+        } catch (error) {
+            console.log('error', error);
+        }
+    }
+
+    async resetDiscount(req, res) {
+        try {
+            const {courseId} = req.params
+            const course = await Course.findById(courseId)
+    
+            course.discountedPrice = null
+            course.discountedCodeApplied = null
+    
+            const resetDiscount = await course.save()
+    
+            res.status(200).json({
+                success: true,
+                data: resetDiscount
+            })
+        } catch (error) {
+            console.log('error', error);
         }
     }
 

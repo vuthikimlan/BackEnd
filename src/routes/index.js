@@ -8,6 +8,9 @@ const discountRoute = require('./discount')
 const orderRoute = require("./order")
 const paymentRoute = require("./payment")
 const commentRoute = require("./comment")
+const fieldRoute = require("./field")
+const approvalRoute = require("./approvalRequest")
+const profileRoute = require("./getProfileUser")
 
 
 function route(app){
@@ -30,6 +33,12 @@ function route(app){
     app.use('/payment', paymentRoute)
 
     app.use('/comment', commentRoute)
+
+    app.use('/field', fieldRoute)
+
+    app.use('/approve', approvalRoute)
+
+    app.use('/profile', profileRoute)
 }
 
 module.exports = route

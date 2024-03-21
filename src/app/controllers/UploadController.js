@@ -39,7 +39,8 @@ const uploadFile = async (req, res, next) => {
     blodStream.on("finish", () => {
         const fileUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(blob.name)}?alt=media&token=${metadata.metadata.firebaseStorageDownloadTokens}`
         return res.status(202).json({
-            fileUrl
+            success: true,
+            data: fileUrl
         })
     })
 

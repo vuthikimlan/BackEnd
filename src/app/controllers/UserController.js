@@ -189,9 +189,9 @@ class UserController {
             const userId = getIdUser(req)
             const user = await User.findById(userId)
 
-            const existingUser = user?.shoppingCart?.find(item => item.courseId.toString() === courseId)
+            const existingCourse = user?.shoppingCart?.find(item => item.courseId.toString() === courseId)
 
-            if(existingUser) {
+            if(existingCourse) {
                 return res.status(201).json({
                     message: "Khóa học đã tồn tại trong giỏ hàng"
                 })
@@ -256,6 +256,8 @@ class UserController {
             
         }
     }
+
+    
 }
 
 module.exports = new UserController

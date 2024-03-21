@@ -1,3 +1,4 @@
+const { default: getVideoDurationInSeconds } = require("get-video-duration");
 const { default: mongoose } = require("mongoose");
 
 const Schema = mongoose.Schema
@@ -19,22 +20,32 @@ const courseSchema = new Schema({
         type: String,
     },
     field: {
-        type: String,
-        require: true,
+        type: Schema.Types.ObjectId,
+        ref: 'Field',
+        required: true
     },
-    category: {
-        type: String,
-        require: true,
+    topic: {
+        type: Schema.Types.ObjectId,
+        ref: 'Field.topics',
+        required: true
     },
+    // Giá gốc
     price: {
         type: Number,
         require: true
+    },
+    discountedPrice:{
+        type: Number
+    },
+    discountedCodeApplied: {
+        type: String
     },
     lessonContent: {
         type: [String],
     },
     totalTimeCourse: {
-        type: Date,
+        type: Number,
+        default: 0
     },
     conditionParticipate: {
         type: String,
@@ -50,40 +61,36 @@ const courseSchema = new Schema({
         type: Boolean,
         default: false,
     },
-    discounts: [
-        {
-            type: Schema.Types.ObjectId,
-            ref: ''
-        }
-    ],
-    lectures: [{
+    
+    parts: [{
         partName: {
             type: String,
         },
-        lectureName: {
-            type: String,
-        },
-        video:{
-            type: String,
-        },
-        descriptionLectures: {
-            type: String,
-        },
-        document: {
-            type: String,
-        },
-        isFree: {
-            type: Boolean,
-            default: false,
-        },
-        timeOfSection: {
-            type: Number,
-        },
+        lectures: [{
+            lectureName: {
+                type: String,
+            },
+            video:{
+                type: String,
+            },
+            descriptionLectures: {
+                type: String,
+            },
+            document: {
+                type: String,
+            },
+            isFree: {
+                type: Boolean,
+                default: false,
+            },
+        }],
         totalTimeLectures: {
             type: Number,
+            default: 0
         },
         totalLecture: {
-            type: Number
+            type: Number,
+            default: 0
         }
     }],
     users:[
@@ -114,6 +121,34 @@ const courseSchema = new Schema({
 
 },{
     timestamps: true,
+})
+
+courseSchema.pre('save', async function(next) {
+    try {
+        const parts = this.parts 
+        let totalLectureCount = 0
+        let totalLectureTime = 0
+    
+        parts.forEach(parts => {
+            totalLectureCount += parts.lectures.length
+        })
+    
+        for(const part of parts ) {
+            for(const lecture of part.lectures ){
+                const duration = await getVideoDurationInSeconds(lecture.video)
+                totalLectureTime += duration
+                
+            }
+    
+        }
+    
+        this.totalLecture = totalLectureCount
+        this.totalTimeLectures = totalLectureTime
+        next()
+    } catch (error) {
+       console.log('error', error);
+    }
+
 })
 
 module.exports = mongoose.model('Course', courseSchema)
