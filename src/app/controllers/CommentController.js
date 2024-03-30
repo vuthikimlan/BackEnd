@@ -13,7 +13,7 @@ class CommentController {
             const {comment, star} = req.body
             const course = await Course.findById(courseId);
             // Kiem tra nguoi dung da tung danh gia khoa hoc chua
-            const existingComment = await Comment.findOne({postedBy: userId})
+            const existingComment = await Comment.findOne({postedBy: userId, courses: courseId})
 
             if(existingComment){
                 existingComment.comment = comment
@@ -32,6 +32,7 @@ class CommentController {
                     comment,
                     star,
                     postedBy: userId,
+                    courses: courseId,
                 })
                 const savedComment = await newComment.save()
                 
@@ -53,7 +54,11 @@ class CommentController {
                     {$match: {_id: {$in: course.ratings} }},
                     {$group: {_id: null, total: {$sum: "$star"} }}
                 ])
-                const totalRatings = totalRating.length > 0 ? Math.round(totalRatings[0].total / course.ratings.length) : 0
+                // Kiểm tra có phần tử ko
+                // Nếu có thì lấy tổng số sao và chia cho số lượt đánh giá sau đó làm tròn 
+                // Còn nếu ko có phần tử thì trả về là 0
+                const totalRatings = totalRating.length > 0 ? Math.round(totalRating[0].total / course.ratings.length) : 0
+
                 course.totalRatings = totalRatings
                 await course.save()
             }

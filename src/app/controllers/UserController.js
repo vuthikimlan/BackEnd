@@ -185,7 +185,7 @@ class UserController {
 
     async addToCart (req, res) {
         try {
-            const {courseId} = req.body
+            const {courseId} = req.params
             const userId = getIdUser(req)
             const user = await User.findById(userId)
 
@@ -233,7 +233,7 @@ class UserController {
 
     async deleteCart (req, res) {
         try {
-            const {courseId} = req.body
+            const {courseId} = req.params
             const userId = getIdUser(req)
             const user = await User.findById(userId)
 

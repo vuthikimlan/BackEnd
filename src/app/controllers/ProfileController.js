@@ -5,7 +5,17 @@ class ProfileController {
     async profileUser( req, res) {
         try {
             const userId = getIdUser(req)
-            const user = await Users.findById(userId).populate('courses').populate('coursesPosted', "-createdBy")
+            const user = await Users.findById(userId)
+            .populate('courses')
+            .populate({
+                path: 'coursesPosted', 
+                select: " -createdBy ",
+                populate: {
+                    path: "field",
+                    select: " title ",
+                }
+        })
+            
     
             res.json({
                 success: true,

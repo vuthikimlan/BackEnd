@@ -4,10 +4,10 @@ const { default: mongoose, Mongoose } = require("mongoose");
 const Schema = mongoose.Schema
 
 const approvalRequestSchema = new Schema ({
-   courseId: {
+   courseId: [{
         type: Schema.Types.ObjectId,
         ref: 'Course'
-    },
+    }],
     status: {
         type: String,
         enum: ['pending', 'approved', 'rejected'],

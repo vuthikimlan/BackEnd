@@ -11,11 +11,11 @@ router.get('/cart/:id', UserController.getCart)
 router.post('/create', addMiddleware ,UserController.addUser)
 router.post('/filter', UserController.filterUser)
 
-router.post('/addCart', UserController.addToCart)
+router.post('/addCart/:courseId', UserController.addToCart)
 
 router.put('/:id', updateMiddleware ,UserController.updateUser)
 
 router.delete('/:id', UserController.deleteUser)
-router.delete('/cart/remove', UserController.deleteCart)
+router.delete('/cart/:courseId', UserController.deleteCart)
 
 module.exports = router

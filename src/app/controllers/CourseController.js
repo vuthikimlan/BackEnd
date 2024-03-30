@@ -10,9 +10,7 @@ class CourseController {
     async addCourse(req, res) {
         try {
 
-            const {partName, lectureName, video, descriptionLectures,
-                 document, isFree, timeOfSection, field, topic
-            } = req.body
+            const { field, topic} = req.body
 
             if(req.body && req.body.name){
                 req.body.slug = slugify(req.body.name)
@@ -27,8 +25,6 @@ class CourseController {
             const username = userInfor.data.username
 
 
-            // Tính tổng số bài giảng của khóa học 
-
             const newCourseData =  { ...req.body, 
                 field,
                 topic ,
@@ -36,17 +32,6 @@ class CourseController {
                     name: name,
                     username: username,
                 },
-                parts: [{
-                    partName: partName,
-                    lectures: [{
-                        lectureName: lectureName,
-                        descriptionLectures: descriptionLectures,
-                        video: video,
-                        document: document,
-                        isFree: isFree,
-                    }],
-                    timeOfSection: timeOfSection,
-                }],
                 
             }
 
@@ -76,6 +61,72 @@ class CourseController {
 
         } catch (error) {
             console.log("error", error)
+        }
+    }
+
+    async addPart(req, res) {
+        try {
+            const {courseId} = req.params
+            const {parts} = req.body
+            const course = await Course.findById(courseId)
+            if(!course) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Không tìm thấy khóa học"
+                })
+            }
+            
+            // Thêm từng phần học vào khóa học
+            // Dùng for để lặp qua mỗi phần tử của parts[]
+            for (const part of parts) {
+                course.parts.push(part)
+            }
+            await course.save()
+
+            res.status(200).json({
+                success: true,
+                data: course
+            })
+
+        } catch (error) {
+            console.log('error', error);
+        }
+    }
+    async addLectures(req, res) {
+        try {
+            const {courseId, partId} = req.params
+            const {lectures} = req.body
+            const course = await Course.findById(courseId)
+            if(!course) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Không tìm thấy khóa học"
+                })
+            }
+
+            // Tim phan trong khoa hoc
+            const partInd = course.parts.findIndex(part => String(part._id) === partId )
+            if(partInd === -1) {
+                 res.status(404).json({
+                    success: false,
+                    message: "Không tìm thấy phần"
+                 })
+            }
+
+            for (const lecture of lectures) {
+                course.parts[partInd].lectures.push(lecture)
+            }
+
+            await course.save()
+
+            res.status(201).json({
+                success: true,
+                message: "Tạo bài giảng thành công",
+                data: course
+            })
+            
+        } catch (error) {
+            console.log('error', error);
         }
     }
 
@@ -117,6 +168,8 @@ class CourseController {
                         select: 'name username ' // Chọn các trường cần hiển thị từ user
                     }
                 })
+                .populate('field', 'title')
+
                 res.status(200).json({
                     success:true,
                     error:null,
@@ -124,6 +177,33 @@ class CourseController {
                     data: course
                 })
             }
+        } catch (error) {
+            console.log('error', error);
+        }
+    }
+
+    async getCourseBySlug(req, res) {
+        try {
+            const slug = req.params.slug
+            // if(isValidObjectId(_id)) {
+            const course = await Course.findOne({ slug: slug}).populate('users')
+            .populate({
+                path: 'ratings',
+                select: 'star comment postedBy updatedAt', // Chọn các trường cần hiển thị từ ratings
+                populate: {
+                    path: 'postedBy',
+                    select: 'name username ' // Chọn các trường cần hiển thị từ user
+                }
+            })
+            .populate('field', 'title')
+
+            res.status(200).json({
+                success:true,
+                error:null,
+                statusCode: 200,
+                data: course
+            })
+            // }
         } catch (error) {
             console.log('error', error);
         }
@@ -156,6 +236,61 @@ class CourseController {
         }
     }
 
+    async updatePart(req, res) {
+        const { courseId, partId,  } = req.params;
+    
+        const course = await Course.findById(courseId)
+        const part = course?.parts.id(partId)
+        if(!part) {
+            res.status(404).json({
+                success: false,
+                message: "Không tìm thấy phần"
+            })
+        }
+        Object.assign(part, req.body)
+        await course.save()
+    
+        res.status(200).json({
+            data: part,
+            error: null,
+            statusCode: 200,
+            success: true
+        })
+    }
+
+    async updateLectures(req, res) {
+        try {
+            const { courseId, partId, lectureId } = req.params;
+    
+            const course = await Course.findById(courseId)
+            const part = course?.parts.id(partId)
+            const lecture = part?.lectures.id(lectureId)
+    
+            if(!lecture) {
+                res.status(404).json({
+                    success: false,
+                    message: "Không tìm thấy bài giảng"
+                })
+            }
+    
+            // Sử dụng phương thức Object.assign để sao chép các thuộc tính
+            // từ req.body vào lecture, pt này lặp qua tất cả các thuộc tính
+            //  có thể liệt kê trong req.body và gán giá trị vào lecture
+            Object.assign(lecture, req.body)
+            await course.save()
+    
+            res.status(200).json({
+                data: lecture,
+                error: null,
+                statusCode: 200,
+                success: true
+            })
+            
+        } catch (error) {
+            console.log('error', error);
+        }
+    }
+
     async deleteCourse(req, res) {
         try {
             await Course.deleteOne({_id: req.params.id})
@@ -164,6 +299,79 @@ class CourseController {
             })
         } catch (error) {
             res.status(500).json(error)
+        }
+    }
+
+    async deletePart(req, res) {
+        try {
+            const {courseId, partId} = req.params
+            const course = await Course.findById(courseId)
+            if(!course) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Không tìm thấy khóa học"
+                })
+            }
+            // Tim phan trong khoa hoc
+            const partInd = course.parts.findIndex(part => String(part._id) === partId )
+            if(partInd === -1) {
+                 res.status(404).json({
+                    success: false,
+                    message: "Không tìm thấy phần"
+                 })
+            } 
+    
+            course.parts.splice(partInd, 1)
+            await course.save()
+    
+            res.status(200).json({
+                message: "Xóa phần thành công"
+            })
+            
+        } catch (error) {
+            console.log('error', error);
+        }
+    }
+
+    async deleteLectures(req, res) {
+        try {
+            const {courseId, partId, lectureId } = req.params
+            
+            const course = await Course.findById(courseId)
+            if(!course) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Không tìm thấy khóa học"
+                })
+            }
+
+            const part = course.parts.id(partId)
+            if (!part) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Không tìm thấy phần học",
+                });
+            }
+
+            const lectureInd = part.lectures.findIndex(lecture => lecture._id.toString() === lectureId)
+            if(lectureInd === -1) {
+                res.status(404).json({
+                    success: false,
+                    message: "Không tìm thấy bài giảng",
+                })
+            }
+            
+            part.lectures.splice(lectureInd, 1)
+
+            await course.save()
+            
+            res.status(200).json({
+                success: true,
+                message: "Xóa bài giảng thành công",
+            });
+        
+        } catch (error) {
+            console.log('error', error);
         }
     }
 

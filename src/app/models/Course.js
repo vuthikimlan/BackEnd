@@ -47,12 +47,9 @@ const courseSchema = new Schema({
         type: Number,
         default: 0
     },
-    conditionParticipate: {
-        type: String,
-    },
-    object: {
-        type: String,
-    },
+    conditionParticipate: [ String],
+    
+    object:[ String],
     level:{
         type: String,
         enum: ["PRIMARY", "INTERMEDIATE", "ALL LEVELS"]
@@ -73,11 +70,17 @@ const courseSchema = new Schema({
             video:{
                 type: String,
             },
+            nameVideo: {
+                type: String
+            },
             descriptionLectures: {
                 type: String,
             },
             document: {
                 type: String,
+            },
+            nameDoc: {
+                type: String
             },
             isFree: {
                 type: Boolean,

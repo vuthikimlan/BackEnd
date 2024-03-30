@@ -4,7 +4,7 @@ const Course = require("../models/Course");
 class ApprovalRequestController{
     async createRequest(req, res) {
         try {
-            const {courseId} = req.body
+            const {courseId} = req.params
             const newRequest = new ApprovalRequest({courseId})
     
             await newRequest.save()
@@ -20,7 +20,14 @@ class ApprovalRequestController{
     async getCoursePending(req, res) {
         const totalAprrove = await ApprovalRequest.countDocuments({status: 'pending' })
 
-        const items = await ApprovalRequest.find({status: 'pending' }).populate('courseId')
+        const items = await ApprovalRequest.find({status: 'pending' })
+        .populate({
+            path: 'courseId',
+            populate: {
+                path: 'field',
+                select: 'title'
+            }
+        })
         res.status(200).json({
             success: true,
             error: null,
@@ -35,7 +42,14 @@ class ApprovalRequestController{
     async getCourseApproved(req, res) {
         const totalAprrove = await ApprovalRequest.countDocuments({status: 'approved' })
 
-        const items = await ApprovalRequest.find({status: 'approved' }).populate('courseId')
+        const items = await ApprovalRequest.find({status: 'approved' })
+        .populate({
+            path: 'courseId',
+            populate: {
+                path: 'field',
+                select: 'title'
+            }
+        })
         res.status(200).json({
             success: true,
             error: null,
@@ -47,10 +61,32 @@ class ApprovalRequestController{
         })
     }
 
+    async getCourseRejected(req, res) {
+        const totalRejected = await ApprovalRequest.countDocuments({status: 'rejected' })
+
+        const items = await ApprovalRequest.find({status: 'rejected' })
+        .populate({
+            path: 'courseId',
+            populate: {
+                path: 'field',
+                select: 'title'
+            }
+        })
+        res.status(200).json({
+            success: true,
+            error: null,
+            statusCode: 200,
+            data: {
+                total: totalRejected,
+                items
+            }
+        })
+    }
+
     async updateApprove(req, res) {
         try {
             const requestId = req.params.id;
-            const {status} = req.body
+            const status = req.body.status
 
             await ApprovalRequest.findByIdAndUpdate(requestId, {status})
 
@@ -64,9 +100,7 @@ class ApprovalRequestController{
                 if (approvalRequest) {
                     await Course.findOneAndUpdate({_id: approvalRequest.courseId}, {isApprove: false});
                 }
-            
             }
-
             res.status(200).json({
                 message: "Cập nhật thành công"
             })
