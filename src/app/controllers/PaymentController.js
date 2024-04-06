@@ -1,5 +1,10 @@
 let config = require('config');
 let moment = require('moment');
+const { getIdUser } = require('../../service/getIdUser');
+const Users = require('../models/Users');
+const Order = require('../models/Order');
+
+// // "vnp_ReturnUrl": "http://localhost:3000/"
 
 function sortObject(obj) {
 	let sorted = {};
@@ -35,7 +40,8 @@ class PaymentController {
         let date = new Date();
 
         let createDate = moment(date).format('YYYYMMDDHHmmss');
-        let orderId = moment(date).format('DDHHmmss');
+        // let orderId = moment(date).format('DDHHmmss');
+        let orderId = req.body.orderId
         let amount = req.body.amount;  // thay đổi
         let bankCode = req.body.bankCode; // thay đổi
         
@@ -74,13 +80,61 @@ class PaymentController {
         vnp_Params['vnp_SecureHash'] = signed;
         vnpUrl += '?' + querystring.stringify(vnp_Params, { encode: false });
 
-        console.log('vnpUrl', vnpUrl);
-
-        // res.redirect(vnpUrl)
         res.status(200).json({
             vnpUrl: vnpUrl
         })
 
+    }
+
+    async getResponseCode(req, res) {
+        let vnp_Params = req.query;
+        let secureHash = vnp_Params['vnp_SecureHash'];
+    
+        delete vnp_Params['vnp_SecureHash'];
+        delete vnp_Params['vnp_SecureHashType'];
+    
+        vnp_Params = sortObject(vnp_Params);
+        let config = require('config');
+        let secretKey = config.get('vnp_HashSecret');
+        let querystring = require('qs');
+        let signData = querystring.stringify(vnp_Params, { encode: false });
+        let crypto = require("crypto");     
+        let hmac = crypto.createHmac("sha512", secretKey);
+        let signed = hmac.update(new Buffer(signData, 'utf-8')).digest("hex");     
+         
+    
+        if(secureHash === signed){
+            let orderId = vnp_Params['vnp_TxnRef'];
+            let rspCode = vnp_Params['vnp_ResponseCode'];
+            //Kiem tra du lieu co hop le khong, cap nhat trang thai don hang va gui ket qua cho VNPAY theo dinh dang duoi
+            
+            // Khi đơn hàng đc thanh toán thành công thì sẽ có một mã được trả về là RspCode: '00', 
+            // Nếu rspCode = 00 thì sẽ thêm những khóa học ở giỏ hàng vào boughtCourses và giỏ hàng sẽ
+            // trống
+            // Còn nếu rspCode khác 00 thì sẽ xóa/hủy đơn hàng đó đi 
+            if(rspCode === '00' ) {
+                const userId = getIdUser(req)
+                const order = await Order.findById(orderId)
+                const course = order?.courses
+                const boughtCourse = await Users.findById(userId)
+                if(boughtCourse) {
+                    boughtCourse.boughtCourses.push(course)
+                    await boughtCourse.save()
+                }
+            }
+
+            res.status(200).json({
+                RspCode: '00', 
+                Message: 'success'
+            })
+            console.log('rspCode', rspCode);
+
+
+            
+        }
+        else {
+            res.status(200).json({RspCode: '97', Message: 'Fail checksum'})
+        }
     }
 
     async createPaymentWithMoMo(req, res) {

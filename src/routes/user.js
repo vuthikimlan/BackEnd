@@ -6,7 +6,8 @@ const updateMiddleware = require('../app/middleware/User/updateMiddleware')
 
 router.get('/getAll', UserController.getAllUser)
 router.get('/:id', UserController.getUserById)
-router.get('/cart/:id', UserController.getCart)
+// router.get('/cart/:userId', UserController.getCart)
+router.get('/cart/getAll', UserController.getCarts)
 
 router.post('/create', addMiddleware ,UserController.addUser)
 router.post('/filter', UserController.filterUser)

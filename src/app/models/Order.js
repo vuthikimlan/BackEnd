@@ -22,10 +22,8 @@ const orderSchema = new Schema({
     },
     courses: [
         {
-            course: {
-                type: Schema.Types.ObjectId,
-                ref: 'Course'
-            }
+            type: Schema.Types.ObjectId,
+            ref: 'Course'
         }
     ],
     user:{

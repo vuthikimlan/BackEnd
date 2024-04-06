@@ -57,9 +57,11 @@ class CommentController {
                 // Kiểm tra có phần tử ko
                 // Nếu có thì lấy tổng số sao và chia cho số lượt đánh giá sau đó làm tròn 
                 // Còn nếu ko có phần tử thì trả về là 0
-                const totalRatings = totalRating.length > 0 ? Math.round(totalRating[0].total / course.ratings.length) : 0
-
+                const totalRatings = totalRating.length > 0 ? (totalRating[0].total / course.ratings.length) : 0
+                const userRatings = course.ratings.length
+                
                 course.totalRatings = totalRatings
+                course.userRatings = userRatings
                 await course.save()
             }
 
@@ -120,7 +122,7 @@ class CommentController {
             let filter = {}
             if(comment) filter.comment = {$regex: new RegExp(comment, 'i')}
 
-            const result = await Comment.find(filter)
+            const result = await Comment.find(filter).populate('postedBy', 'name username').populate('courses', 'name price')
             const totalComment = await Comment.countDocuments(filter)
 
             res.status(200).json({

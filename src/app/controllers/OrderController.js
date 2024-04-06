@@ -3,15 +3,22 @@ const Order = require('../models/Order')
 const Users = require('../models/Users')
 const { getIdUser } = require('../../service/getIdUser')
 
+// Các phần cần xử lý ở đơn hàng: 
+// Khi hủy đơn hàng có 2 lựa chọn - xóa đơn hàng đó đi
+// or thêm một trường để phân biệt đơn hàng đã bị hủy
+// Nếu xóa thì cũng cần phải xóa cả của bên người dùng
+// Nếu những đơn hàng này cùng chung 1 người thì cần phải
+// xử lý như thế nào
+
 class OrderController {
     async addOrder(req, res) {
         try {
             const userId = getIdUser(req)
             const user = await Users.findById(userId).select('shoppingCart').populate('shoppingCart.courseId', 'name image price')
             
-            const courses = user?.shoppingCart?.map(el =>({
-                course: el.courseId._id
-            }))
+            const courses = user?.shoppingCart?.map(el =>(
+                 el.courseId._id
+            ))
 
             const orderId = Date.now().toString()
             
@@ -33,7 +40,9 @@ class OrderController {
 
             const orderUser = await Users.findById(userId)
             if(orderUser) {
-                orderUser.order.push(saveOrder._id)
+                orderUser.order.push(saveOrder._id) //Sau khi tạo đơn hàng thành công cần đẩy id
+                // của đơn hàng vào trường đơn hàng của người dùng
+                // orderUser.shoppingCart = []
                 await orderUser.save()
             }
     
@@ -53,7 +62,7 @@ class OrderController {
     async getAllOrder(req, res) {
         const totalOrder = await Order.countDocuments()
 
-        const items = await Order.find({}).populate('user', 'name username email').populate('courses.course', 'name price')
+        const items = await Order.find({}).populate('user', 'name username email').populate('courses', '_id image name price')
         res.status(200).json({
             success: true,
             error: null,
@@ -70,7 +79,7 @@ class OrderController {
             const id = req.params.id
 
             if(isValidObjectId(id)) {
-                const order = await Order.findById({_id: id}).populate('user', 'name username email').populate('courses.course', 'name price')
+                const order = await Order.findById({_id: id}).populate('user', 'name username email').populate('courses', '_id image name price')
                 res.status(200).json({
                     success:true,
                     error:null,

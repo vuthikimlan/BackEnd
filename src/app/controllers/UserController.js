@@ -7,7 +7,6 @@ const { getIdUser } = require('../../service/getIdUser')
 class UserController {
     async addUser(req, res) {
         try {
-
             const {specialization, experience, 
                 facebook, pendingEarning, paidEarning,
                 accountNumber, accountName,
@@ -70,9 +69,17 @@ class UserController {
     async getAllUser(req, res) {
         const totalUser = await User.countDocuments()
         const items = await User.find({})
-        .populate('courses')
+        .populate('boughtCourses')
         .populate('coursesPosted', "-createdBy ")
-        .populate('order', "orderId totalPrice")
+        // .populate('order', "_id courses totalPrice")
+        .populate({
+            path: 'order',
+            select: "_id courses totalPrice",
+            populate: {
+                path: 'courses',
+                select: " -image -createdAt -updatedAt -conditionParticipate -object "
+            }
+        })
         res.status(200).json({
             success: true,
             error: null,
@@ -87,8 +94,17 @@ class UserController {
     async getUserById(req, res){
         const _id = req.params.id
         if(isValidObjectId(_id)) {
-            const user = await User.findById({_id: _id}).populate('courses').populate('coursesPosted', "-createdBy")
-            
+            const user = await User.findById({_id: _id})
+            .populate('boughtCourses')
+            .populate('coursesPosted', "-createdBy")
+            .populate({
+                path: 'order',
+                select: "_id courses totalPrice",
+                populate: {
+                    path: 'courses',
+                    select: " -image -createdAt -updatedAt -conditionParticipate -object "
+                }
+            })
             res.status(200).json({
                 success: true,
                 error:null,
@@ -203,9 +219,15 @@ class UserController {
             }
             await user.save()
 
+            const countCourse = user.shoppingCart.length;
+
+
             res.status(200).json({
                 message: "Thêm vào giỏ hàng thành công",
-                data: user.shoppingCart
+                data: {
+                    countCourse: countCourse,
+                    items: user.shoppingCart
+                }
             })
             
         } catch (error) {
@@ -216,7 +238,8 @@ class UserController {
 
     async getCart (req, res) {
         try {
-            const userId = req.params.id
+            const userId = req.params.userId
+            console.log('userId', userId);
             const user = await User.findById(userId).select('shoppingCart').populate('shoppingCart.courseId', 'name image price')
     
            res.status(200).json({
@@ -224,6 +247,35 @@ class UserController {
             error: null,
             statusCode: 200,
             data: user
+           })
+        }
+        catch (error) {
+            res.status(500).json(error)
+        }
+    }
+
+    async getCarts (req, res) {
+        try {
+            const userId = getIdUser(req)
+            const user = await User.findById(userId).select('shoppingCart').populate('shoppingCart.courseId', 'name image price')
+            .populate({
+                path: 'shoppingCart.courseId',
+                select: 'name image price createdBy discountedCodeApplied discountedPrice totalLecture level totalRatings totalTimeCourse userRatings', 
+                populate: {
+                    path: 'createdBy',
+                    select: 'name username ' // Chọn các trường cần hiển thị từ user
+                }
+            })
+            const countCourse = user.shoppingCart.length;
+    
+           res.status(200).json({
+            success: true,
+            error: null,
+            statusCode: 200,
+            data:{ 
+                count: countCourse,
+                items: user
+            }
            })
         }
         catch (error) {
@@ -256,7 +308,6 @@ class UserController {
             
         }
     }
-
     
 }
 

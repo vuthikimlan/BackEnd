@@ -6,6 +6,7 @@ const FieldController = require("../app/controllers/FieldController")
 router.get('/getAll', FieldController.getAllField)
 // router.get('/:id', FieldController.getByIdField)
 router.get('/:slug', FieldController.getBySlug)
+router.get('/:slugField/:slugTopic', FieldController.getTopicBySlug)
 
 router.post('/create', FieldController.addField)
 router.post('/filter', FieldController.filterField)

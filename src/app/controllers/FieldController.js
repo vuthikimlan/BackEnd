@@ -42,9 +42,13 @@ class FieldController {
             const field = await Field.findById(fieldId)
 
             for(const topic of topics) {
-                field.topics.push(topic)
+                const newTopic = {
+                    ...topic,
+                    slug: slugify(topic.nameTopic)
+                }
+                field.topics.push(newTopic)
+                // console.log('topic', topic);
             }
-            
             await field.save()
 
             res.status(200).json({
@@ -97,12 +101,34 @@ class FieldController {
     async getBySlug(req, res) {
         try {
             const slug = req.params.slug
-            const field = await Field.findOne({ slug: slug})
+            const field = await Field.findOne({ slug: slug}).populate('topics.courses')
             res.status(200).json({
                 success:true,
                 error:null,
                 statusCode: 200,
                 data: field
+            })
+
+        } catch (error) {
+            console.log('error', error);
+        }
+    }
+
+    async getTopicBySlug(req, res) {
+        try {
+            const {slugField, slugTopic } = req.params
+            const field = await Field.findOne({ slug: slugField}).populate({
+                path: 'topics',
+                match: { slug: slugTopic },
+                populate: { path: 'courses' }
+            });
+            // Không thể dùng trực tiếp populate ở topic vì Mongoose không hỗ trợ gọi phương thức populate() trực tiếp trên các tài liệu lồng nhau
+            const topic = field.topics.find(topic => topic.slug === slugTopic)
+            res.status(200).json({
+                success:true,
+                error:null,
+                statusCode: 200,
+                data: topic
             })
 
         } catch (error) {
@@ -146,7 +172,9 @@ class FieldController {
 
             })
         }
-        Object.assign(topic, req.body)
+        const updatedTopic = Object.assign(topic, req.body)
+        updatedTopic.slug =  slugify(topic.nameTopic)
+        
         await field.save()
 
         res.status(200).json({

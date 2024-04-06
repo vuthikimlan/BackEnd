@@ -1,4 +1,3 @@
-const { default: getVideoDurationInSeconds } = require("get-video-duration");
 const { default: mongoose } = require("mongoose");
 
 const Schema = mongoose.Schema
@@ -35,7 +34,8 @@ const courseSchema = new Schema({
         require: true
     },
     discountedPrice:{
-        type: Number
+        type: Number,
+        default: 0
     },
     discountedCodeApplied: {
         type: String
@@ -47,8 +47,11 @@ const courseSchema = new Schema({
         type: Number,
         default: 0
     },
+    totalLecture: {
+        type: Number,
+        default: 0
+    },
     conditionParticipate: [ String],
-    
     object:[ String],
     level:{
         type: String,
@@ -58,7 +61,6 @@ const courseSchema = new Schema({
         type: Boolean,
         default: false,
     },
-    
     parts: [{
         partName: {
             type: String,
@@ -91,10 +93,6 @@ const courseSchema = new Schema({
             type: Number,
             default: 0
         },
-        totalLecture: {
-            type: Number,
-            default: 0
-        }
     }],
     users:[
         {
@@ -119,6 +117,10 @@ const courseSchema = new Schema({
     totalRatings: {
         type: Number,
         default: 0,
+    },
+    userRatings:{
+        type: Number,
+        default: 0,
     }
     
 
@@ -126,32 +128,5 @@ const courseSchema = new Schema({
     timestamps: true,
 })
 
-courseSchema.pre('save', async function(next) {
-    try {
-        const parts = this.parts 
-        let totalLectureCount = 0
-        let totalLectureTime = 0
-    
-        parts.forEach(parts => {
-            totalLectureCount += parts.lectures.length
-        })
-    
-        for(const part of parts ) {
-            for(const lecture of part.lectures ){
-                const duration = await getVideoDurationInSeconds(lecture.video)
-                totalLectureTime += duration
-                
-            }
-    
-        }
-    
-        this.totalLecture = totalLectureCount
-        this.totalTimeLectures = totalLectureTime
-        next()
-    } catch (error) {
-       console.log('error', error);
-    }
-
-})
 
 module.exports = mongoose.model('Course', courseSchema)

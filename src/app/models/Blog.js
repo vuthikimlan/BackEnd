@@ -7,6 +7,11 @@ const blogSchema = new Schema ({
         type: String,
         require: true,
     },
+    slug: {
+        type: String,
+        unique: true,
+        lowercase: true
+    },
     image:{
         type: String,
     },
@@ -22,7 +27,12 @@ const blogSchema = new Schema ({
         }
     },
     field: {
-        type: String,
+        title: {
+            type: String,
+            unique: true,
+            lowercase: true
+        },
+        slugField: {}
     },
     content: {
         type: String,

@@ -5,6 +5,7 @@ const { default: slugify } = require('slugify')
 const Users = require('../models/Users')
 const Discount = require('../models/Discount')
 const Field = require('../models/Field')
+const { default: getVideoDurationInSeconds } = require('get-video-duration')
 
 class CourseController {
     async addCourse(req, res) {
@@ -80,6 +81,7 @@ class CourseController {
             // Dùng for để lặp qua mỗi phần tử của parts[]
             for (const part of parts) {
                 course.parts.push(part)
+                
             }
             await course.save()
 
@@ -96,6 +98,7 @@ class CourseController {
         try {
             const {courseId, partId} = req.params
             const {lectures} = req.body
+            let totalLectures = 0;
             const course = await Course.findById(courseId)
             if(!course) {
                 return res.status(400).json({
@@ -115,8 +118,17 @@ class CourseController {
 
             for (const lecture of lectures) {
                 course.parts[partInd].lectures.push(lecture)
+                const timeLectures = await getVideoDurationInSeconds(lecture.video)
+                course.parts[partInd].totalTimeLectures += timeLectures
+                course.totalTimeCourse += timeLectures 
             }
 
+            // Sau khi thêm bài giảng thành công cần tăng số lượng
+            // bài giảng có trong khóa học
+            course.parts.forEach(part => {
+                totalLectures += part.lectures.length;
+            });
+            course.totalLecture = totalLectures;
             await course.save()
 
             res.status(201).json({
@@ -278,6 +290,14 @@ class CourseController {
             //  có thể liệt kê trong req.body và gán giá trị vào lecture
             Object.assign(lecture, req.body)
             await course.save()
+
+            const newTotalTime = course.parts.reduce((total, part) => {
+                return total + part.totalTimeLectures
+            },)
+
+            course.totalTimeCourse = newTotalTime
+            await course.save()
+
     
             res.status(200).json({
                 data: lecture,

@@ -1,14 +1,22 @@
 const { isValidObjectId } = require('mongoose')
 const Blog = require('../models/Blog')
+const { default: slugify } = require('slugify')
+
 
 class BlogController {
     async addBlog(req, res) {
         try {
-            const {nameAuthor, avatar} = req.body
+            const {nameAuthor, avatar, name, title} = req.body
             const newBlogData = {...req.body,
+                name: name,
+                slug: slugify(name),
                 author: {
                     nameAuthor: nameAuthor,
                     avatar: avatar,
+                },
+                field: {
+                    title: title,
+                    slugField: slugify(title)
                 }
             }
             const newBlog = new Blog(newBlogData)
@@ -62,6 +70,21 @@ class BlogController {
         }
     }
 
+    async getBySlug(req, res) {
+        try {
+            const slug = req.params.slug
+            const blog = await Blog.findOne({slug: slug})
+            res.status(200).json({
+                success:true,
+                error:null,
+                statusCode: 200,
+                data: blog
+            })
+        } catch (error) {
+            console.log('error', error);
+        }
+    }
+
     async updateBlog(req, res) {
         try {
             const updateBlog = await Blog.findByIdAndUpdate(req.params.id, req.body, {new: true})
@@ -96,12 +119,13 @@ class BlogController {
 
     async filterBlog(req, res) {
         try {
-            const {name, field, author} = req.body
+            const {name, title,slugField, nameAuthor} = req.body
             let filter = {}
 
             if(name) filter.name = {$regex: new RegExp(name, 'i')}
-            if(field) filter.field = {$regex: new RegExp(field, 'i')}
-            if(author) filter.author = {$regex: new RegExp(author, 'i')}
+            if(title) filter['field.title'] = {$regex: new RegExp(title, 'i')}
+            if(slugField) filter['field.slugField'] = {$regex: new RegExp(slugField, 'i')}
+            if(nameAuthor) filter['author.nameAuthor'] = {$regex: new RegExp(nameAuthor, 'i')}
             
             const result = await Blog.find(filter)
             const totalBlog = await Blog.countDocuments(filter)
@@ -119,9 +143,10 @@ class BlogController {
             )
 
         } catch (error) {
-            res.status(500).json({
-                error: 'Có lỗi trong quá trình xử lý yêu cầu'
-            })
+            // res.status(500).json({
+            //     error: 'Có lỗi trong quá trình xử lý yêu cầu'
+            // })
+            console.log('error', error);
         }
     }
 

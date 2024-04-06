@@ -30,7 +30,7 @@ const userSchema = new Schema({
     avatar: {
         type: String,
     },
-    courses: [
+    boughtCourses: [
         {
             type: Schema.Types.ObjectId,
             ref: 'Course'
