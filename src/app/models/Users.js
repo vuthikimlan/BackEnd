@@ -42,6 +42,10 @@ const userSchema = new Schema({
             ref: 'Course'
         }
     ],
+    countCourseCart: {
+        type: Number,
+        default: 0
+    },
     shoppingCart: [{
         courseId: {
             type: Schema.Types.ObjectId,
@@ -95,10 +99,8 @@ const userSchema = new Schema({
         type: String
     },
     resetPasswordTokenExpirse: {
-        type: String
-    },
-
-
+        type: Date
+    }
 },{
     timestamps: true,
 })

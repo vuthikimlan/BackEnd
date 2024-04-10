@@ -5,9 +5,14 @@ const addMiddleware = require('../app/middleware/User/addMiddleware')
 const updateMiddleware = require('../app/middleware/User/updateMiddleware')
 
 router.get('/getAll', UserController.getAllUser)
+router.get('/student', UserController.studentofTecher)
+
 router.get('/:id', UserController.getUserById)
 // router.get('/cart/:userId', UserController.getCart)
 router.get('/cart/getAll', UserController.getCarts)
+
+router.get('/:teacherId/sales', UserController.revenueTeacher)
+// router.get('/:teacherId/student', UserController.studentofTecher)
 
 router.post('/create', addMiddleware ,UserController.addUser)
 router.post('/filter', UserController.filterUser)

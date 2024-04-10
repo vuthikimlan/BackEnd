@@ -30,6 +30,7 @@ class CourseController {
                 field,
                 topic ,
                 createdBy:{
+                    _id: userId,
                     name: name,
                     username: username,
                 },
@@ -168,19 +169,19 @@ class CourseController {
 
     async getCourseById(req, res) {
         try {
-            const _id = req.params.id
-            
-            if(isValidObjectId(_id)) {
-                const course = await Course.findById({ _id: _id}).populate('users')
+            const id = req.params.courseId
+            if(isValidObjectId(id)) {
+                const course = await Course.findById({ _id: id}).populate('users')
                 .populate({
                     path: 'ratings',
-                    select: 'star comment postedBy', // Chọn các trường cần hiển thị từ ratings
+                    select: 'star comment postedBy updatedAt', // Chọn các trường cần hiển thị từ ratings
                     populate: {
                         path: 'postedBy',
                         select: 'name username ' // Chọn các trường cần hiển thị từ user
                     }
                 })
                 .populate('field', 'title')
+                .populate('users', 'name email phone')
 
                 res.status(200).json({
                     success:true,
@@ -197,7 +198,6 @@ class CourseController {
     async getCourseBySlug(req, res) {
         try {
             const slug = req.params.slug
-            // if(isValidObjectId(_id)) {
             const course = await Course.findOne({ slug: slug}).populate('users')
             .populate({
                 path: 'ratings',

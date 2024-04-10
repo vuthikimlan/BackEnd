@@ -3,32 +3,30 @@ const Order = require('../models/Order')
 const Users = require('../models/Users')
 const { getIdUser } = require('../../service/getIdUser')
 
-// Các phần cần xử lý ở đơn hàng: 
-// Khi hủy đơn hàng có 2 lựa chọn - xóa đơn hàng đó đi
-// or thêm một trường để phân biệt đơn hàng đã bị hủy
-// Nếu xóa thì cũng cần phải xóa cả của bên người dùng
-// Nếu những đơn hàng này cùng chung 1 người thì cần phải
-// xử lý như thế nào
 
 class OrderController {
-    async addOrder(req, res) {
+  async addOrder(req, res) {
         try {
             const userId = getIdUser(req)
-            const user = await Users.findById(userId).select('shoppingCart').populate('shoppingCart.courseId', 'name image price')
+
+            //Lấy thông tin giỏ hàng và khóa học của người dùng
+            const user = await Users.findById(userId)
+                .select('shoppingCart')
+                .populate('shoppingCart.courseId', 'name image price')
             
-            const courses = user?.shoppingCart?.map(el =>(
-                 el.courseId._id
+            //Lấy danh sách id khóa học trong giỏ hàng 
+            const courses = user?.shoppingCart?.map(item  =>(
+                 item.courseId._id
             ))
 
-            const orderId = Date.now().toString()
             
-            // tính giá tiền cho các khóa học trong giỏ hàng
-            const totalPrice = user?.shoppingCart?.reduce((sum, el) =>
-                el.courseId.price * el.quantity + sum, 0
-            )
+            // Tính tổng giá trị đơn hàng
+            const totalPrice = user.shoppingCart.reduce((sum, item) => {
+                return sum + item.courseId.price * item.quantity; 
+            }, 0);
 
             const newOrder = new Order({
-                orderId,
+                orderId: Date.now().toString(),
                 user: userId,
                 courses,
                 price: totalPrice,
@@ -38,13 +36,10 @@ class OrderController {
     
             const saveOrder = await newOrder.save()
 
+            //Cập nhật đơn hàng vào user
             const orderUser = await Users.findById(userId)
-            if(orderUser) {
-                orderUser.order.push(saveOrder._id) //Sau khi tạo đơn hàng thành công cần đẩy id
-                // của đơn hàng vào trường đơn hàng của người dùng
-                // orderUser.shoppingCart = []
-                await orderUser.save()
-            }
+            orderUser.order.push(newOrder._id);
+            await orderUser.save();
     
             res.status(200).json({
                 data: saveOrder,
@@ -55,6 +50,7 @@ class OrderController {
             
         } catch (error) {
             console.log("error", error)
+            res.status(500).json(error); 
         }
 
     }
@@ -62,7 +58,7 @@ class OrderController {
     async getAllOrder(req, res) {
         const totalOrder = await Order.countDocuments()
 
-        const items = await Order.find({}).populate('user', 'name username email').populate('courses', '_id image name price')
+        const items = await Order.find({}).populate('user', 'name username email').populate('courses', '_id image name price createdBy')
         res.status(200).json({
             success: true,
             error: null,

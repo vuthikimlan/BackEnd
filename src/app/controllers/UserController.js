@@ -1,8 +1,11 @@
 const { validationResult } = require('express-validator')
+const { default: mongoose } = require("mongoose");
+const { Types: { ObjectId } } = require('mongoose');
 const Course = require('../models/Course')
 const User = require('../models/Users')
-const { isValidObjectId } = require('mongoose')
+const { isValidObjectId, } = require('mongoose')
 const { getIdUser } = require('../../service/getIdUser')
+const Order = require('../models/Order')
 
 class UserController {
     async addUser(req, res) {
@@ -91,6 +94,40 @@ class UserController {
         })
     }
 
+    // const teacherId = req.params.teacherId
+    async studentofTecher(req, res) {
+        try {
+            const teacherId = getIdUser(req)
+            const user = await User.findById(teacherId)
+
+            let students = [];
+
+            // query 1 lần duy nhất để lấy thông tin các khóa học
+            const courses = await Course.find({_id: {$in: user.coursesPosted}}).populate('users', 'name email phone ');
+
+            // Duyệt qua courses lấy danh sách học viên và gán vào mảng
+            for (const course of courses) {
+                students.push(...course.users); 
+            }
+            const totalStudent = students.length;
+
+            res.status(200).json({
+                success: true,
+                error: null,
+                statusCode: 200,
+                data:{
+                    totalStudent,
+                    students
+
+                },
+            });
+            
+        } catch (error) {
+            console.log('error', error);
+            res.status(500).json({ error: 'An error occurred while fetching student-teacher data.' });
+        }
+    }
+
     async getUserById(req, res){
         const _id = req.params.id
         if(isValidObjectId(_id)) {
@@ -112,7 +149,7 @@ class UserController {
                 data: user
             })
         } else {
-            res.status(200).json({
+            res.status(400).json({
                 error:"Định dạng của _id không hợp lệ"
             })
         }
@@ -204,6 +241,7 @@ class UserController {
             const {courseId} = req.params
             const userId = getIdUser(req)
             const user = await User.findById(userId)
+            let countCourses = 0
 
             const existingCourse = user?.shoppingCart?.find(item => item.courseId.toString() === courseId)
 
@@ -211,21 +249,20 @@ class UserController {
                 return res.status(201).json({
                     message: "Khóa học đã tồn tại trong giỏ hàng"
                 })
-            } else {
-                const newCartItem = {
-                    courseId: courseId,
-                }
-                user.shoppingCart.push(newCartItem)
-            }
+            } 
+
+            const newCartItem = {courseId}
+            user.shoppingCart.push(newCartItem)
+            // Cập nhật số lượng khóa học trong giỏ hàng khi thêm mới
+            countCourses = user.shoppingCart.length
+            user.countCourseCart = countCourses
+
             await user.save()
-
-            const countCourse = user.shoppingCart.length;
-
 
             res.status(200).json({
                 message: "Thêm vào giỏ hàng thành công",
                 data: {
-                    countCourse: countCourse,
+                    countCourse: countCourses,
                     items: user.shoppingCart
                 }
             })
@@ -234,24 +271,6 @@ class UserController {
             console.log('error', error);
         }
 
-    }
-
-    async getCart (req, res) {
-        try {
-            const userId = req.params.userId
-            console.log('userId', userId);
-            const user = await User.findById(userId).select('shoppingCart').populate('shoppingCart.courseId', 'name image price')
-    
-           res.status(200).json({
-            success: true,
-            error: null,
-            statusCode: 200,
-            data: user
-           })
-        }
-        catch (error) {
-            res.status(500).json(error)
-        }
     }
 
     async getCarts (req, res) {
@@ -289,25 +308,89 @@ class UserController {
             const userId = getIdUser(req)
             const user = await User.findById(userId)
 
+            let countCourses = 0
+
             //Kiểm tra giỏ hàng của người dùng có tồn tại không
             if(!user.shoppingCart || user.shoppingCart === 0) {
                 return res.status(200).json({
                     message: "Giỏ hàng trống"
                 })
             }
-
-            user.shoppingCart = user.shoppingCart.filter(item => item.courseId.toString() != courseId)
             
+            //duyệt qua các khóa học trong giỏ hàng và xóa khóa học có id trùng với courseId 
+            user.shoppingCart = user.shoppingCart.filter(item => item.courseId.toString() != courseId)
+            //Cập nhật số lượng khóa học sau khi xóa
+            countCourses = user.shoppingCart.length
+            user.countCourseCart = countCourses
+
             await user.save()
 
             res.status(200).json({
-                message: "Xóa khóa học khỏi giỏ hàng thành công"
+                message: "Xóa khóa học khỏi giỏ hàng thành công",
+                data: user
             })
             
         } catch (error) {
             
         }
     }
+
+
+    // Logic để thực hiện tính doanh thu của giảng viên
+    // Giảng viên A có id là 123
+    // Lấy chi tiết đơn hàng và trong đơn hàng đó kiểm tra
+    // xem khóa học có thuộc về giảng viên này không
+
+    async revenueTeacher(req, res) {
+        try {
+            // const teacherId = getIdUser(req)
+            const teacherId = req.params.teacherId
+
+            const orders = await Order.find({status: 'completed'})
+                .populate('courses')
+                .exec()
+            
+            //Lọc các đơn hàng có khóa học do giảng viên này tạo
+            const relevantOrders = orders.filter(order => {
+                return order.courses.some(course => course.createdBy._id.toString() === teacherId);
+            })
+
+            // Tinh tổng doanh thu của giảng viên trên tất cả các khóa học
+            let totalRevenue = 0;
+
+            relevantOrders.forEach(order => {
+            // Lấy tổng giá khóa học của giảng viên trong đơn hàng
+                const courseRevenue = order.courses
+                    .filter(course => course.createdBy._id.toString() === teacherId)
+                    .reduce((total, course) => total + course.price, 0);
+                totalRevenue += courseRevenue;
+            })
+
+            // Tính doanh thu/số tiền thực tế mà giảng viên sẽ nhận được
+            const actualRevenue = totalRevenue * 0.8; // Trừ 20% phí của nền tảng
+
+            const user = await User.findById(teacherId);
+            user.teacher.pendingEarning = totalRevenue;
+            user.teacher.paidEarning = actualRevenue;
+            await user.save();
+
+            res.status(200).json({
+                success: true,
+                error: null,
+                statusCode: 200,
+                data: {
+                    user: user,
+                }
+            });
+
+        }
+        catch (error) {
+            console.log('error', error);
+        }
+    }
+
+    
+
     
 }
 

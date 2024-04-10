@@ -3,6 +3,7 @@ let moment = require('moment');
 const { getIdUser } = require('../../service/getIdUser');
 const Users = require('../models/Users');
 const Order = require('../models/Order');
+const Course = require('../models/Course');
 
 // // "vnp_ReturnUrl": "http://localhost:3000/"
 
@@ -102,35 +103,49 @@ class PaymentController {
         let hmac = crypto.createHmac("sha512", secretKey);
         let signed = hmac.update(new Buffer(signData, 'utf-8')).digest("hex");     
          
-    
         if(secureHash === signed){
             let orderId = vnp_Params['vnp_TxnRef'];
             let rspCode = vnp_Params['vnp_ResponseCode'];
             //Kiem tra du lieu co hop le khong, cap nhat trang thai don hang va gui ket qua cho VNPAY theo dinh dang duoi
-            
+            const userId = getIdUser(req)
+            const order = await Order.findById(orderId)
             // Khi đơn hàng đc thanh toán thành công thì sẽ có một mã được trả về là RspCode: '00', 
             // Nếu rspCode = 00 thì sẽ thêm những khóa học ở giỏ hàng vào boughtCourses và giỏ hàng sẽ
-            // trống
+            // trống và đơn hàng sẽ được cập nhật trạng thái là đã hoàn thành
             // Còn nếu rspCode khác 00 thì sẽ xóa/hủy đơn hàng đó đi 
             if(rspCode === '00' ) {
-                const userId = getIdUser(req)
-                const order = await Order.findById(orderId)
-                const course = order?.courses
+                //Tìm kiếm khóa học trong đơn hàng của người dùng
+                const courses = order?.courses 
+                console.log('courses', courses);
+                
+                // Lưu khóa học đã mua vào boughtCourses của user
                 const boughtCourse = await Users.findById(userId)
-                if(boughtCourse) {
-                    boughtCourse.boughtCourses.push(course)
-                    await boughtCourse.save()
+                const courseId = courses.map(course => course._id)
+                boughtCourse.boughtCourses.push(...courseId)
+                // Xóa giỏ hàng sau khi thanh toán thành công
+                boughtCourse.shoppingCart = []
+                await boughtCourse.save()
+
+                // Thêm id của người dùng vào khóa học
+                for(let course of courses) {
+                    const inforCourse = await Course.findById(course._id)
+                    console.log('inforCourse', inforCourse);
+                    inforCourse.users.push(userId)
+                    await inforCourse.save()
                 }
+
+                // Cập nhật trạng thái đơn hàng thành hoàn thành
+                await order.updateOne({ status: 'completed' })
+                await order.save()
+            } else {
+                await order.updateOne({ status: 'cancelled' })
             }
 
             res.status(200).json({
                 RspCode: '00', 
                 Message: 'success'
             })
-            console.log('rspCode', rspCode);
 
-
-            
         }
         else {
             res.status(200).json({RspCode: '97', Message: 'Fail checksum'})
@@ -142,13 +157,13 @@ class PaymentController {
         //parameters
         var accessKey = 'F8BBA842ECF85';
         var secretKey = 'K951B6PE1waDMi640xX08PD3vg6EkVlz';
-        var orderInfo = 'pay with MoMo';
+        var orderInfo = 'Thanh toán qua MOMO'; //Mô tả - có thể thay đổi
         var partnerCode = 'MOMO';
-        var redirectUrl = 'https://webhook.site/b3088a6a-2d17-4f8d-a383-71389a6c600b';
-        var ipnUrl = 'https://webhook.site/b3088a6a-2d17-4f8d-a383-71389a6c600b';
+        var redirectUrl = 'http://localhost:3000/payment-success'; //Khi thanh toán thành công thì dẫn đến trang thông báo thành công
+        var ipnUrl = 'http://localhost:3000/payment-ipn'; //Đường dẫn nhận kết quả
         var requestType = "payWithMethod";
-        var amount = '50000';
-        var orderId = partnerCode + new Date().getTime();
+        var amount =  req.body.amount; // Thay đổi
+        var orderId = req.body.orderId //Thay bằng _id của đơn hàng
         var requestId = orderId;
         var extraData ='';
         var paymentCode = 'T8Qii53fAXyUftPV3m9ysyRhEanUs9KlOPfHgpMR0ON50U10Bh+vZdpJU7VY4z+Z2y77fJHkoDc69scwwzLuW5MzeUKTwPo3ZMaB29imm6YulqnWfTkgzqRaion+EuD7FN9wZ4aXE1+mRt0gHsU193y+yxtRgpmY7SDMU9hCKoQtYyHsfFR5FUAOAKMdw2fzQqpToei3rnaYvZuYaxolprm9+/+WIETnPUDlxCYOiw7vPeaaYQQH0BF0TxyU3zu36ODx980rJvPAgtJzH1gUrlxcSS1HQeQ9ZaVM1eOK/jl8KJm6ijOwErHGbgf/hVymUQG65rHU2MWz9U8QUjvDWA==';
@@ -158,7 +173,16 @@ class PaymentController {
 
         //before sign HMAC SHA256 with format
         //accessKey=$accessKey&amount=$amount&extraData=$extraData&ipnUrl=$ipnUrl&orderId=$orderId&orderInfo=$orderInfo&partnerCode=$partnerCode&redirectUrl=$redirectUrl&requestId=$requestId&requestType=$requestType
-        var rawSignature = "accessKey=" + accessKey + "&amount=" + amount + "&extraData=" + extraData + "&ipnUrl=" + ipnUrl + "&orderId=" + orderId + "&orderInfo=" + orderInfo + "&partnerCode=" + partnerCode + "&redirectUrl=" + redirectUrl + "&requestId=" + requestId + "&requestType=" + requestType;
+        var rawSignature = "accessKey=" + accessKey + 
+                        "&amount=" + amount + 
+                        "&extraData=" + extraData + 
+                        "&ipnUrl=" + ipnUrl + 
+                        "&orderId=" + orderId + 
+                        "&orderInfo=" + orderInfo +
+                        "&partnerCode=" + partnerCode + 
+                        "&redirectUrl=" + redirectUrl + 
+                        "&requestId=" + requestId + 
+                        "&requestType=" + requestType;
         //puts raw signature
         console.log("--------------------RAW SIGNATURE----------------")
         console.log(rawSignature)
@@ -221,7 +245,7 @@ class PaymentController {
         console.log("Sending....")
         reqq.write(requestBody);
         // reqq.end();
-        console.log(responseBody);
+        console.log('requestBody', requestBody);
     }
 }
 

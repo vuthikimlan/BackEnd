@@ -11,53 +11,42 @@ class CommentController {
             const userId = getIdUser(req)
             const {courseId} = req.params
             const {comment, star} = req.body
-            const course = await Course.findById(courseId);
-            // Kiem tra nguoi dung da tung danh gia khoa hoc chua
-            const existingComment = await Comment.findOne({postedBy: userId, courses: courseId})
 
-            if(existingComment){
-                existingComment.comment = comment
-                existingComment.star = star
-               
-                const savedComment = await existingComment.save()
-                
-                res.status(200).json({
-                    success: true,
-                    message: 'Cập nhật thành công',
-                    data: savedComment
-                })
+            const course = await Course.findById(courseId);
+
+            let commentDoc  = await Comment.findOne({postedBy: userId, courses: courseId})
+            let message;
+
+            if(commentDoc ){
+                // Cập nhật nội dung cho các comment đã tồn tại
+                commentDoc .comment = comment
+                commentDoc .star = star
             } 
             else {
-                const newComment = new Comment({
+                // Tạo mới comment nếu chưa tồn tại
+                commentDoc = new Comment({
                     comment,
                     star,
                     postedBy: userId,
                     courses: courseId,
                 })
-                const savedComment = await newComment.save()
-                
-                // Them id cua danh gia vao mang rating cua khoa hoc
-                if(course) {
-                    course.ratings.push(savedComment._id)
-                    await course.save()
-                }
-                
-                res.status(200).json({
-                    success: true,
-                    message: "Tạo đánh giá thành công",
-                    data: savedComment
-                })
             }
+            await commentDoc.save()
             
+            // Cập nhật rating của khóa học
             if(course) {
-                const totalRating = await Comment.aggregate([
+                // Them id cua danh gia vao mang rating cua khoa hoc
+                course.ratings.push(commentDoc._id)
+                await course.save()
+
+                const [totalRating] = await Comment.aggregate([
                     {$match: {_id: {$in: course.ratings} }},
                     {$group: {_id: null, total: {$sum: "$star"} }}
                 ])
                 // Kiểm tra có phần tử ko
                 // Nếu có thì lấy tổng số sao và chia cho số lượt đánh giá sau đó làm tròn 
                 // Còn nếu ko có phần tử thì trả về là 0
-                const totalRatings = totalRating.length > 0 ? (totalRating[0].total / course.ratings.length) : 0
+                const totalRatings = totalRating[0].total / course.ratings.length || 0
                 const userRatings = course.ratings.length
                 
                 course.totalRatings = totalRatings
@@ -65,9 +54,27 @@ class CommentController {
                 await course.save()
             }
 
-            } catch (error) {
-                console.log("error", error)
+            if(commentDoc) {
+                message = 'Cập nhật đánh giá thành công';
+            } else {
+                message = 'Tạo mới đánh giá thành công';
             }
+
+            // Trả về kết quả
+            res.status(200).json({
+                success: true,
+                message: message,
+                data: commentDoc
+            });
+
+        } catch (error) {
+            console.log("error", error)
+            res.status(500).json({
+                success: false,
+                error: "Đã có lỗi xảy ra, vui lòng thử lại sau",
+                statusCode: 500
+            })
+        }
     }
     
 

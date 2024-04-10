@@ -18,7 +18,7 @@ const orderSchema = new Schema({
     status: {
         type: String,
         default: 'pending',
-        enum: ['pending', 'paid']
+        enum: ['pending', 'cancelled', 'completed']
     },
     courses: [
         {

@@ -3,8 +3,8 @@ const router = express.Router()
 const CourseController = require('../app/controllers/CourseController')
 
 router.get('/getAll', CourseController.getAllCourse)
-// router.get('/:id', CourseController.getCourseById)
-router.get('/:slug', CourseController.getCourseBySlug)
+router.get('/:courseId', CourseController.getCourseById)
+router.get('/detail/:slug', CourseController.getCourseBySlug)
 
 router.post('/create', CourseController.addCourse)
 router.post('/filter', CourseController.filterCourse)

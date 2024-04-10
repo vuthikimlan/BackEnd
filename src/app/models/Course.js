@@ -101,6 +101,9 @@ const courseSchema = new Schema({
         }
     ],
     createdBy: {
+        _id: {
+            type: Schema.Types.ObjectId,
+        },
         name: {
             type: String,
         },

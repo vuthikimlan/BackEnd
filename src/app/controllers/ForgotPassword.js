@@ -14,7 +14,6 @@ const transpoter = nodemailer.createTransport({
     }
 })
 
-
 const forgotPassword = async (req, res) => {
     const {email} = req.body
     const user = await User.findOne({email})
@@ -31,13 +30,13 @@ const forgotPassword = async (req, res) => {
         )
     user.resetPasswordToken = token
     // Token sẽ hết hạn sau 1h
-    user.resetPasswordTokenExpirse = Date.now() + 3600000
+    user.resetPasswordTokenExpirse = Date.now() + 3600000 //1h
 
     await user.save();
 
     // Link này khi click vào sẽ dẫn đến một trang web khác --> đường dẫn sẽ thay bằng đường
     // dẫn của FE. Trong trang web đó chứa biểu mẫu dùng để đặt lại pass
-    const resetUrl = `http://${req.headers.host}/reset-password?token=${token}`
+    const resetUrl = `http://localhost:3000/reset-password?token=${token}`
 
     const mailOptions = {
         from: 'E-learning',
@@ -49,7 +48,6 @@ const forgotPassword = async (req, res) => {
                 Bạn đã gửi yêu cầu đặt lại mật khẩu của bạn <br/>
                 Vui lòng click vào link dưới đây để đặt lại mật khẩu.
                 <a href="${resetUrl}" >Đặt lại mật khẩu</a>
-                
             </p>
 
         </div> 
@@ -57,11 +55,15 @@ const forgotPassword = async (req, res) => {
     }
 
     try {
-        await transpoter.sendMail(mailOptions)
+        transpoter.sendMail(mailOptions)
         res.json({
             message: "Vui lòng kiểm tra email"
         })
     } catch (error) {
+        user.resetPasswordToken = undefined;
+        user.resetPasswordTokenExpirse = undefined;
+
+        await user.save();
         res.status(500).json({
             error: "Có lỗi trong quá trình gửi lại mật khẩu"
         })
@@ -70,57 +72,47 @@ const forgotPassword = async (req, res) => {
 
 const resetPassword = async (req, res) => {
     try {
-        const {token, newPassword, confirmPassword} = req.body
+        const resetToken = req.query.token
+       
+        // Tìm user dựa vào token
+        const user = await User.findOne({
+            resetPasswordToken: resetToken,
+            resetPasswordTokenExpirse: { $gt: Date.now() }
+        })
 
-        const errors = validationResult(req)
-        if(!errors.isEmpty()) {
-            return res.status(200).json({
-                error: {
-                    errorList : errors.array(),
-                    message: "Tham số không hợp lệ",
-                    statusCode: 2,
-                    success: false,
-
-                }
+        if(!user){
+            return res.status(400).json({
+                message: "Token không hợp lệ hoặc đã hết hạn"
             })
         }
-
-        // Kiểm tra mật khẩu mới và mật khẩu cũ
-        if(newPassword !== confirmPassword) {
+        // Đặt lại mật khẩu
+        const {newPassword, confirmPassword} = req.body;   
+         // Kiểm tra mật khẩu mới và mật khẩu cũ
+         if(newPassword !== confirmPassword) {
             res.status(400).json({
                 message: "Mật khẩu không khớp"
             })
         }
+        
+        // Mã hóa mật khẩu mới
+        const hashedPassword = await bcrypt.hash(newPassword, 12);
+        user.password = null;
+        user.password = hashedPassword;
+        user.resetPasswordToken = undefined;
+        user.resetPasswordTokenExpirse = undefined;
 
-        // lấy id từ token của người dùng
-        const decoded = jwt.verify(token, "This is JWT")
-        const userId = decoded.id
-
-        // Kiểm tra người dùng có tồn tại không
-        const user = await User.findById(userId)
-        if(!user) {
-            res.status(401).json({
-                message: "Người dùng không tồn tại"
-            })
-        }
-        const hashedPassword = await bcrypt.hash(newPassword, parseInt("10"))
-
-        user.password = hashedPassword
-        user.resetPasswordToken = undefined,
-        user.resetPasswordTokenExpirse = undefined
-        await user.save()
+        await user.save();
 
         res.status(200).json({
             message: "Đặt lại mật khẩu thành công"
         })
     } catch (error) {
+        console.log(error)
         res.status(500).json({
             message: "Có lỗi trong quá trình đặt lại mật khẩu"
         })
     }
 }
-
-
 
 module.exports = {
     forgotPassword,
