@@ -88,6 +88,10 @@ const courseSchema = new Schema({
                 type: Boolean,
                 default: false,
             },
+            duration: {
+                type: Number ,
+                default: 0
+              }
         }],
         totalTimeLectures: {
             type: Number,

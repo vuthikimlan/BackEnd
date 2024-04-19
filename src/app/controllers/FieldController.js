@@ -162,27 +162,27 @@ class FieldController {
     }
 
     async updateTopic(req, res) {
-        const {fieldId, topicId} = req.params
-        const field = await Field.findById(fieldId)
-        const topic = field?.topics.id(topicId)
-        if(!topic) {
-            res.status(404).json({
-                success: false,
-                message: "Không tìm thấy chủ đề"
-
+        try {
+            const {fieldId, topicId} = req.params
+            const field = await Field.findById(fieldId)
+            const topic = field?.topics.id(topicId)
+           
+            if(req.body.nameTopic) {
+                topic.slug = slugify(req.body.nameTopic) 
+            }
+            Object.assign(topic, req.body)
+            await field.save()
+    
+            res.status(200).json({
+                data: topic,
+                error: null,
+                statusCode: 200,
+                success: true
             })
+            
+        } catch (error) {
+            console.log(error);
         }
-        const updatedTopic = Object.assign(topic, req.body)
-        updatedTopic.slug =  slugify(topic.nameTopic)
-        
-        await field.save()
-
-        res.status(200).json({
-            data: topic,
-            error: null,
-            statusCode: 200,
-            success: true
-        })
 
 
     }

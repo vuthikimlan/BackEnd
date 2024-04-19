@@ -95,50 +95,44 @@ class CourseController {
             console.log('error', error);
         }
     }
+
     async addLectures(req, res) {
         try {
-            const {courseId, partId} = req.params
-            const {lectures} = req.body
-            let totalLectures = 0;
-            const course = await Course.findById(courseId)
-            if(!course) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Không tìm thấy khóa học"
-                })
-            }
+            const { courseId, partId } = req.params;
+            const { lectureName, video, document, descriptionLectures, isFree } = req.body;
+            const course = await Course.findById(courseId);
+            const part = course.parts.id(partId);
+            const  timeLecture =  await getVideoDurationInSeconds(video)
+            const duration =  Math.round( (timeLecture/ 60) * 100) / 100;;
+            const newLecture = {
+                lectureName,
+                video,
+                document,
+                duration,
+                descriptionLectures,
+                isFree,
+            };
 
-            // Tim phan trong khoa hoc
-            const partInd = course.parts.findIndex(part => String(part._id) === partId )
-            if(partInd === -1) {
-                 res.status(404).json({
-                    success: false,
-                    message: "Không tìm thấy phần"
-                 })
-            }
+            part.lectures.push(newLecture); 
+            part.totalLecture = part.lectures.length;
 
-            for (const lecture of lectures) {
-                course.parts[partInd].lectures.push(lecture)
-                const timeLectures = await getVideoDurationInSeconds(lecture.video)
-                course.parts[partInd].totalTimeLectures += timeLectures
-                course.totalTimeCourse += timeLectures 
-            }
+            const newTotalTimeLectures = part.lectures.reduce(
+                (total, currLecture) => total + currLecture.duration, 0
+            );
+            part.totalTimeLectures = newTotalTimeLectures;
 
-            // Sau khi thêm bài giảng thành công cần tăng số lượng
-            // bài giảng có trong khóa học
-            course.parts.forEach(part => {
-                totalLectures += part.lectures.length;
-            });
-            course.totalLecture = totalLectures;
-            await course.save()
+            const newTotalTime = course.parts.reduce((total, part) => {
+                return total + part.totalTimeLectures
+            },0)
 
+            course.totalTimeCourse += newTotalTime 
+            await course.save();
             res.status(201).json({
                 success: true,
                 message: "Tạo bài giảng thành công",
                 data: course
             })
-            
-        } catch (error) {
+        }catch (error) {
             console.log('error', error);
         }
     }
@@ -270,42 +264,41 @@ class CourseController {
         })
     }
 
-    async updateLectures(req, res) {
+    
+    async updateLectures (req, res) {
         try {
             const { courseId, partId, lectureId } = req.params;
-    
-            const course = await Course.findById(courseId)
-            const part = course?.parts.id(partId)
-            const lecture = part?.lectures.id(lectureId)
-    
-            if(!lecture) {
-                res.status(404).json({
-                    success: false,
-                    message: "Không tìm thấy bài giảng"
-                })
+            const {video} = req.body;
+            const course = await Course.findById(courseId);
+            const part = course.parts.id(partId);
+            const lecture = part.lectures.id(lectureId);
+
+            const oldDuration = lecture.duration;
+            const timeLecture = await getVideoDurationInSeconds(video)
+
+            if( req.body.video) {
+                const newDuration = Math.round( (timeLecture/ 60) * 100) / 100;
+                lecture.duration = newDuration;
             }
-    
-            // Sử dụng phương thức Object.assign để sao chép các thuộc tính
-            // từ req.body vào lecture, pt này lặp qua tất cả các thuộc tính
-            //  có thể liệt kê trong req.body và gán giá trị vào lecture
-            Object.assign(lecture, req.body)
-            await course.save()
+            Object.assign(lecture, req.body);
+            // Cập nhật lại thời lượng cho part
+            part.totalTimeLectures -= oldDuration;
+            part.totalTimeLectures += lecture.duration;
+            part.totalLecture = part.lectures.length;
 
             const newTotalTime = course.parts.reduce((total, part) => {
-                return total + part.totalTimeLectures
-            },)
+                return total + part.totalTimeLectures;
+            }, 0);
+            course.totalTimeCourse = newTotalTime;
+            await course.save();
 
-            course.totalTimeCourse = newTotalTime
-            await course.save()
-
-    
             res.status(200).json({
-                data: lecture,
+                data: course,
                 error: null,
                 statusCode: 200,
                 success: true
             })
-            
+
         } catch (error) {
             console.log('error', error);
         }
@@ -440,11 +433,12 @@ class CourseController {
             // Kiem tra ma giam gia co ton tai khong
             const existingDiscountCode = await Discount.findOne({discountCode})
             if (!existingDiscountCode) {
-                res.json({
+                return res.status(400).json({
                     message: "Mã giảm giá không tồn tại"
                 });
             } else if (existingDiscountCode.expiryDate < new Date()) {
-                res.json({
+                return res.status(200).json({
+                    success: false,
                     message: "Mã giảm giá đã hết hạn sử dụng"
                 });
             }
@@ -456,7 +450,7 @@ class CourseController {
             course.discountedPrice = course.price * (1 - existingDiscountCode.discountRate / 100 )
 
             const discountCourse = await course.save()
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 data: discountCourse
             })

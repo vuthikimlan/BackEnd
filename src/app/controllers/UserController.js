@@ -77,10 +77,11 @@ class UserController {
         // .populate('order', "_id courses totalPrice")
         .populate({
             path: 'order',
-            select: "_id courses totalPrice",
+            select: "_id courses totalPrice status ",
             populate: {
                 path: 'courses',
-                select: " -image -createdAt -updatedAt -conditionParticipate -object "
+                select: " name discountedPrice price  "
+                // -image -createdAt -updatedAt -conditionParticipate -object
             }
         })
         res.status(200).json({
@@ -136,10 +137,11 @@ class UserController {
             .populate('coursesPosted', "-createdBy")
             .populate({
                 path: 'order',
-                select: "_id courses totalPrice",
+                select: "_id courses totalPrice status ",
                 populate: {
                     path: 'courses',
-                    select: " -image -createdAt -updatedAt -conditionParticipate -object "
+                    select: " name discountedPrice price  "
+                    // -image -createdAt -updatedAt -conditionParticipate -object
                 }
             })
             res.status(200).json({
@@ -149,7 +151,7 @@ class UserController {
                 data: user
             })
         } else {
-            res.status(400).json({
+            res.status(200).json({
                 error:"Định dạng của _id không hợp lệ"
             })
         }

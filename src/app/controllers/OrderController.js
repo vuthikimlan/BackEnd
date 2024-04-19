@@ -5,14 +5,14 @@ const { getIdUser } = require('../../service/getIdUser')
 
 
 class OrderController {
-  async addOrder(req, res) {
+    async addOrder(req, res) {
         try {
             const userId = getIdUser(req)
 
             //Lấy thông tin giỏ hàng và khóa học của người dùng
             const user = await Users.findById(userId)
                 .select('shoppingCart')
-                .populate('shoppingCart.courseId', 'name image price')
+                .populate('shoppingCart.courseId', 'name image price discountedPrice')
             
             //Lấy danh sách id khóa học trong giỏ hàng 
             const courses = user?.shoppingCart?.map(item  =>(
@@ -22,7 +22,10 @@ class OrderController {
             
             // Tính tổng giá trị đơn hàng
             const totalPrice = user.shoppingCart.reduce((sum, item) => {
-                return sum + item.courseId.price * item.quantity; 
+                const price = item?.courseId?.discountedPrice
+                    ? item?.courseId?.discountedPrice
+                    : item?.courseId?.price;
+                return sum + price;
             }, 0);
 
             const newOrder = new Order({
@@ -58,7 +61,7 @@ class OrderController {
     async getAllOrder(req, res) {
         const totalOrder = await Order.countDocuments()
 
-        const items = await Order.find({}).populate('user', 'name username email').populate('courses', '_id image name price createdBy')
+        const items = await Order.find({}).populate('user', 'name phone email').populate('courses', '_id image name price discountedPrice createdBy')
         res.status(200).json({
             success: true,
             error: null,
@@ -75,7 +78,7 @@ class OrderController {
             const id = req.params.id
 
             if(isValidObjectId(id)) {
-                const order = await Order.findById({_id: id}).populate('user', 'name username email').populate('courses', '_id image name price')
+                const order = await Order.findById({_id: id}).populate('user', 'name username email').populate('courses', '_id image name price discountedPrice')
                 res.status(200).json({
                     success:true,
                     error:null,

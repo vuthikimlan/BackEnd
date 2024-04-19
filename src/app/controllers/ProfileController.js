@@ -23,6 +23,14 @@ class ProfileController {
                 select: 'title'
               }  
             })
+            .populate({
+              path: 'order',
+              select: "_id courses totalPrice orderDate status ",
+              populate: {
+                  path: 'courses',
+                  select: " name "
+              }
+            })
             
             res.json({
                 success: true,
