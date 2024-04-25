@@ -13,13 +13,22 @@ class OrderController {
             const user = await Users.findById(userId)
                 .select('shoppingCart')
                 .populate('shoppingCart.courseId', 'name image price discountedPrice')
-            
-            //Lấy danh sách id khóa học trong giỏ hàng 
-            const courses = user?.shoppingCart?.map(item  =>(
-                 item.courseId._id
-            ))
 
             
+            const courses = user?.shoppingCart?.map(item  =>(
+                item.courseId._id
+            ))
+            
+            // Tạo mảng price từ thông tin giỏ hàng của người dùng
+
+           const price = user.shoppingCart.map(item => {
+            return {
+                courseId: item.courseId._id,
+                name: item.courseId.name,
+                price: item.courseId.discountedPrice ? item.courseId.discountedPrice : item.courseId.price
+            }
+           } )
+
             // Tính tổng giá trị đơn hàng
             const totalPrice = user.shoppingCart.reduce((sum, item) => {
                 const price = item?.courseId?.discountedPrice
@@ -32,7 +41,7 @@ class OrderController {
                 orderId: Date.now().toString(),
                 user: userId,
                 courses,
-                price: totalPrice,
+                price,
                 totalPrice,
                 orderDate: new Date()
             })
@@ -61,7 +70,9 @@ class OrderController {
     async getAllOrder(req, res) {
         const totalOrder = await Order.countDocuments()
 
-        const items = await Order.find({}).populate('user', 'name phone email').populate('courses', '_id image name price discountedPrice createdBy')
+        const items = await Order.find({})
+        .populate('user', 'name phone email')
+        .populate('courses', '_id image name price discountedPrice createdBy')
         res.status(200).json({
             success: true,
             error: null,

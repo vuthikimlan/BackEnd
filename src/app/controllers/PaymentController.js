@@ -116,7 +116,6 @@ class PaymentController {
             if(rspCode === '00' ) {
                 //Tìm kiếm khóa học trong đơn hàng của người dùng
                 const courses = order?.courses 
-                console.log('courses', courses);
                 
                 // Lưu khóa học đã mua vào boughtCourses của user
                 const boughtCourse = await Users.findById(userId)
@@ -129,7 +128,6 @@ class PaymentController {
                 // Thêm id của người dùng vào khóa học
                 for(let course of courses) {
                     const inforCourse = await Course.findById(course._id)
-                    console.log('inforCourse', inforCourse);
                     inforCourse.users.push(userId)
                     await inforCourse.save()
                 }
@@ -247,6 +245,132 @@ class PaymentController {
         // reqq.end();
         console.log('requestBody', requestBody);
     }
+
+    // Tổng doanh thu của toàn bộ hệ thống theo ngày - tháng - năm
+    async totalRevenueSystemsByDay(req, res) {
+        const order = await Order.find({status: 'completed'});
+        const revenueByDay = {}
+        order.forEach(order => {
+            const day = order.orderDate.toLocaleDateString('en-GB');
+            if(!revenueByDay[day]) {
+                revenueByDay[day] = 0;
+            }
+
+            revenueByDay[day] += order.totalPrice;
+        })
+        
+        // Chuyen thanh mang
+        const data = Object.keys(revenueByDay).map(key => ({
+            day: key,
+            revenue: revenueByDay[key]
+        }));
+
+        res.status(200).json({
+            data: data
+        });
+    }
+    async totalRevenueSystemsByMonth(req, res) {
+        const order = await Order.find({status: 'completed'});
+        const revenueByMonth = {}
+        order.forEach(order => {
+            const month = order.orderDate.toLocaleDateString('en-GB', {month: '2-digit', year: 'numeric'});
+            if(!revenueByMonth[month]) {
+                revenueByMonth[month] = 0;
+            }
+
+            revenueByMonth[month] += order.totalPrice;
+        })
+        
+        // Chuyen thanh mang
+        const data = Object.keys(revenueByMonth).map(key => ({
+            month: key,
+            revenue: revenueByMonth[key]
+        }));
+
+        res.status(200).json({
+            data: data
+        });
+    }
+    async totalRevenueSystemsByYear(req, res) {
+        const order = await Order.find({status: 'completed'});
+        const revenueByYear = {}
+        order.forEach(order => {
+            const year = order.orderDate.getFullYear();
+            if(!revenueByYear[year]) {
+                revenueByYear[year] = 0;
+            }
+
+            revenueByYear[year] += order.totalPrice;
+        })
+        
+        // Chuyen thanh mang
+        const data = Object.keys(revenueByYear).map(key => ({
+            year: key,
+            revenue: revenueByYear[key]
+        }));
+
+        res.status(200).json({
+            data: data
+        });
+    }
+
+    async totalRevenueInstructorByMonth(req, res){
+        try {
+            const teacherId = getIdUser(req)
+            let revenue = 0
+            const revenueByMonth = {}
+
+            const order = await Order.find({status: 'completed'})
+                .populate('courses')
+                .populate({
+                    path: 'courses.createdBy', 
+                    select: '_id' 
+                  })
+            
+            order.forEach(order => {
+                const month = order.orderDate.toLocaleDateString('en-GB', 
+                    {month: '2-digit', year: 'numeric'}
+                )
+                // Lay khoa hoc cua tung don hang
+                const courses = order.courses
+
+                // Loc ra khoa hoc cua giang vien
+                const teacherCourses = courses.filter(course => {
+                    return course.createdBy._id.toString() === teacherId;
+                });
+
+                // Loc ra khoa hoc tron truong price
+                const revenueCourses = order.price.filter(course => 
+                    teacherCourses.some(c => c._id.equals(course.courseId))
+                )
+
+                // Tinh doanh thu mỗi đơn hàng
+                
+                revenueCourses.forEach(course => {
+                    revenue += course.price
+                })
+
+                if(!revenueByMonth[month]) {
+                    revenueByMonth[month] = 0;
+                }
+
+                revenueByMonth[month] += revenue
+            })
+
+            const data = Object.keys(revenueByMonth).map(key => ({
+                month: key,
+                revenue: revenueByMonth[key]
+            }));
+            res.status(200).json({
+                data: data
+            });
+            
+        } catch (error) {
+            console.log(error);
+            
+        }
+    }
+
 }
 
 module.exports = new PaymentController

@@ -345,27 +345,37 @@ class UserController {
 
     async revenueTeacher(req, res) {
         try {
-            // const teacherId = getIdUser(req)
             const teacherId = req.params.teacherId
-
-            const orders = await Order.find({status: 'completed'})
-                .populate('courses')
-                .exec()
-            
-            //Lọc các đơn hàng có khóa học do giảng viên này tạo
-            const relevantOrders = orders.filter(order => {
-                return order.courses.some(course => course.createdBy._id.toString() === teacherId);
-            })
-
-            // Tinh tổng doanh thu của giảng viên trên tất cả các khóa học
             let totalRevenue = 0;
+            let revenue = 0
 
-            relevantOrders.forEach(order => {
-            // Lấy tổng giá khóa học của giảng viên trong đơn hàng
-                const courseRevenue = order.courses
-                    .filter(course => course.createdBy._id.toString() === teacherId)
-                    .reduce((total, course) => total + course.price, 0);
-                totalRevenue += courseRevenue;
+            const order = await Order.find({status: 'completed'})
+                .populate('courses')
+                .populate({
+                    path: 'courses.createdBy', 
+                    select: '_id' 
+                  })
+            
+            order.forEach(order => {
+                // Lay khoa hoc cua tung don hang
+                const courses = order.courses
+
+                // Loc ra khoa hoc cua giang vien
+                const teacherCourses = courses.filter(course => {
+                    return course.createdBy._id.toString() === teacherId;
+                });
+
+                // Loc ra khoa hoc tron truong price
+                const revenueCourses = order.price.filter(course => 
+                    teacherCourses.some(c => c._id.equals(course.courseId))
+                )
+
+                // Tinh doanh thu mỗi đơn hàng
+                revenueCourses.forEach(course => {
+                    revenue += course.price
+                })
+
+                totalRevenue += revenue;
             })
 
             // Tính doanh thu/số tiền thực tế mà giảng viên sẽ nhận được
@@ -391,6 +401,7 @@ class UserController {
         }
     }
 
+    
     
 
     

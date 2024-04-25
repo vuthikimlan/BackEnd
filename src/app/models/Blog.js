@@ -1,45 +1,49 @@
 const { default: mongoose } = require("mongoose");
 
-const Schema = mongoose.Schema
+const Schema = mongoose.Schema;
 
-const blogSchema = new Schema ({
+const blogSchema = new Schema(
+  {
     name: {
-        type: String,
-        require: true,
+      type: String,
+      require: true,
     },
     slug: {
-        type: String,
-        unique: true,
-        lowercase: true
+      type: String,
+      unique: true,
+      lowercase: true,
     },
-    image:{
-        type: String,
+    image: {
+      type: String,
     },
     description: {
-        type: String,
+      type: String,
     },
-    author:{
-        nameAuthor: {
-            type: String,
-        },
-        avatar:{
-            type: String,
-        }
+    author: {
+      nameAuthor: {
+        type: String,
+      },
+      avatar: {
+        type: String,
+      },
     },
     field: {
-        title: {
-            type: String,
-            unique: true,
-            lowercase: true
-        },
-        slugField: {}
+      title: {
+        type: String,
+      },
+      slugField: {
+        type: String,
+        unique: true,
+        lowercase: true,
+      },
     },
     content: {
-        type: String,
-    }
-
-},{
+      type: String,
+    },
+  },
+  {
     timestamps: true,
-})
+  }
+);
 
-module.exports = mongoose.model('Blog', blogSchema)
+module.exports = mongoose.model("Blog", blogSchema);
