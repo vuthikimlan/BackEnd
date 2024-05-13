@@ -1,10 +1,10 @@
 const admin = require("firebase-admin");
 const { v4: uuidv4 } = require("uuid");
 
-const serviceAccount = require("../../../e-learning-17f36-firebase-adminsdk-q9ccz-d68364e4e1.json");
+// const serviceAccount = require("../../../e-learning-17f36-firebase-adminsdk-q9ccz-d68364e4e1.json");
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+  // credential: admin.credential.cert(serviceAccount),
   storageBucket: "gs://e-learning-17f36.appspot.com",
 });
 
