@@ -46,8 +46,6 @@ class DiscountController {
       expiryDate: { $lt: new Date() },
     });
 
-    console.log("expiriedDiscount", expiriedDiscount);
-
     expiriedDiscount.forEach(async (coupon) => {
       coupon.active = false;
       await coupon.save();
@@ -96,13 +94,7 @@ class DiscountController {
         req.body,
         { new: true }
       );
-      if (!updateDiscount) {
-        return res.status(404).json({
-          message: "Không tìm thấy bản ghi",
-          statusCode: 404,
-          success: false,
-        });
-      }
+
       res.status(200).json({
         data: updateDiscount,
         error: null,

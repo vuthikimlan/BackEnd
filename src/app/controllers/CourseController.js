@@ -1,4 +1,4 @@
-const { isValidObjectId } = require("mongoose");
+const { isValidObjectId, default: mongoose } = require("mongoose");
 const Course = require("../models/Course");
 const jwt = require("jsonwebtoken");
 const { default: slugify } = require("slugify");
@@ -398,19 +398,32 @@ class CourseController {
 
   async filterCourse(req, res) {
     try {
-      const { name, field, category, price, level } = req.body;
+      const { name, field, topic, level, minPrice, maxPrice } = req.body;
       let filter = {};
 
       if (name) filter.name = { $regex: new RegExp(name, "i") };
-      if (field) filter.field = { $regex: new RegExp(field, "i") };
-      if (category) filter.category = { $regex: new RegExp(category, "i") };
+      // if (field) filter.field = { $regex: new RegExp(field, "i") };
+      if (field) {
+        const objectId = new mongoose.Types.ObjectId(field);
+        filter.field = objectId.toString();
+      }
+      if (topic) {
+        const objectId = new mongoose.Types.ObjectId(topic);
+        filter.topic = objectId.toString();
+      }
       if (level) filter.level = { $regex: new RegExp(level, "i") };
       // Để lọc các khóa học với giá tiền gần giá trị cụ thể, bạn nên sử dụng
       // các toán tử so sánh số như $lt (nhỏ hơn), $lte (nhỏ hơn hoặc bằng),
       //  $gt (lớn hơn), $gte (lớn hơn hoặc bằng)
-      if (price) filter.price = { $gte: parseInt(price) };
+      // if (price) filter.price = { $gte: parseInt(price) };
+      if (minPrice && maxPrice) {
+        filter.price = {
+          $gte: minPrice,
+          $lte: maxPrice,
+        };
+      }
 
-      const result = await Course.find(filter);
+      const result = await Course.find(filter).populate("field", "title");
       const totalCourse = await Course.countDocuments(filter);
 
       res.json({
@@ -423,7 +436,7 @@ class CourseController {
         },
       });
     } catch (error) {
-      // console.log('error', error);
+      console.log("error", error);
       res.status(500).json({
         error: "Có lỗi trong quá trình xử lý yêu cầu",
       });
