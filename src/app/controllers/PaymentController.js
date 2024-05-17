@@ -373,15 +373,16 @@ class PaymentController {
 
         // Tinh doanh thu mỗi đơn hàng
 
-        revenueCourses.forEach((course) => {
-          revenue = course.price;
-        });
+        for (let course of revenueCourses) {
+          revenue += course.price;
+        }
 
         if (!revenueByMonth[month]) {
           revenueByMonth[month] = 0;
         }
 
         revenueByMonth[month] += revenue;
+        revenue = 0;
       });
 
       const data = Object.keys(revenueByMonth).map((key) => ({
@@ -416,16 +417,15 @@ class PaymentController {
           revenueByDay[day] = 0;
         }
 
-        const revenueCourses = order.price.filter((course) =>
-          courses.some((c) => c._id.equals(course.courseId))
-        );
+        const revenueCourses = order.price.filter((course) => {
+          return course.courseId.toString() === courseId;
+        });
 
         revenueCourses.forEach((courses) => {
-          if (courses.courseId.toString() === courseId) {
-            revenue += courses.price;
-          }
+          revenue += courses.price;
+          revenueByDay[day] = revenue;
         });
-        revenueByDay[day] = revenue;
+        revenue = 0;
       });
 
       const data = Object.keys(revenueByDay).map((key) => ({
@@ -492,6 +492,145 @@ class PaymentController {
     } catch (error) {
       console.log("error", error);
     }
+  }
+  async revenueCourseByTime(req, res) {
+    try {
+      const { fromDate, toDate } = req.body;
+      const dateFrom = moment(fromDate, "MM/DD/YYYY").format("YYYY-MM-DD");
+      const dateTo = moment(toDate, "MM/DD/YYYY").format("YYYY-MM-DD");
+      let orders;
+      if (fromDate && toDate) {
+        orders = await Order.find({
+          createdAt: {
+            $gte: dateFrom,
+            $lte: dateTo,
+          },
+          status: "completed",
+        })
+          .populate("courses")
+          .populate({
+            path: "courses.createdBy",
+            select: "_id",
+          });
+      } else {
+        orders = await Order.find({
+          status: "completed",
+        })
+          .populate("courses")
+          .populate({
+            path: "courses.createdBy",
+            select: "_id",
+          });
+      }
+      let revenues = [];
+      let revenueByTime = {};
+      orders.forEach((order) => {
+        order.price.forEach((course) => {
+          const courseId = course.courseId;
+          if (!revenueByTime[courseId]) {
+            revenueByTime[courseId] = {
+              courseId,
+              name: course.name,
+              revenue: course.price,
+            };
+          } else {
+            revenueByTime[courseId].revenue += course.price;
+          }
+          revenues = Object.values(revenueByTime);
+        });
+      });
+      res.json({
+        success: true,
+        error: null,
+        statusCode: 200,
+        data: revenues,
+      });
+    } catch (error) {
+      console.log("error", error);
+    }
+  }
+
+  async reveneueInstructorByMonth(req, res) {
+    // Lấy danh sách id của các giảng viên
+    const teachers = await Users.find({ role: "TEACHER" }).select(
+      "_id name paymentMethod email "
+    );
+
+    const { fromDate, toDate } = req.query;
+    const dateFrom = moment(fromDate, "MM/DD/YYYY").format("YYYY-MM-DD");
+    const dateTo = moment(toDate, "MM/DD/YYYY").format("YYYY-MM-DD");
+    let orders;
+    if (fromDate && toDate) {
+      orders = await Order.find({
+        createdAt: {
+          $gte: dateFrom,
+          $lte: dateTo,
+        },
+        status: "completed",
+      }).populate({
+        path: "courses",
+        select: "createdBy _id name image price discountedPrice",
+        populate: {
+          path: "createdBy",
+          select: "_id",
+        },
+      });
+    } else {
+      orders = await Order.find({
+        status: "completed",
+      }).populate({
+        path: "courses",
+        select: "createdBy _id name image price discountedPrice",
+        populate: {
+          path: "createdBy",
+          select: "_id",
+        },
+      });
+    }
+    let result = [];
+    let month;
+
+    for (let teacher of teachers) {
+      const { _id, name, email, paymentMethod } = teacher;
+      const revenueByMonth = { pendingEarning: 0, paidEarning: 0 };
+      for (let order of orders) {
+        month = order.orderDate.toLocaleDateString("en-GB", {
+          month: "2-digit",
+          year: "numeric",
+        });
+
+        // Lọc các khóa học của giảng viên hiện tại
+        const teacherCourses = order.courses.filter((c) =>
+          c.createdBy._id.equals(_id)
+        );
+        const revenueCourses = order.price.filter((course) =>
+          teacherCourses.some((c) => c._id.equals(course.courseId))
+        );
+
+        // Tính tổng doanh thu cho giảng viên theo tháng
+        revenueCourses.forEach((course) => {
+          revenueByMonth.pendingEarning += course.price;
+          revenueByMonth.paidEarning += course.price * 0.8; // Giảng viên sẽ bị trừ phí cho hệ thống là 20% ==> giảng viên chỉ được nhận 80% doanh thu
+        });
+        // revenueCourses.forEach((course) => {
+        //   if (!revenueByMonth) {
+        //     revenueByMonth = { pendingEarning: 0, paidEarning: 0 };
+        //   }
+        //   revenueByMonth.pendingEarning += course.price;
+        //   revenueByMonth.paidEarning = revenueByMonth.pendingEarning * 0.8; // Giảng viên sẽ bị trừ phí cho hệ thống là 20% ==> giảng viên chỉ được nhận 80% doanh thu
+        // });
+      }
+      result.push({
+        teacher: {
+          _id,
+          name,
+          email,
+          paymentMethod,
+        },
+        revenueByMonth,
+      });
+    }
+    res.json({ month, data: result });
   }
 }
 
