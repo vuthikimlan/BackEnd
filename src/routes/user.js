@@ -6,11 +6,17 @@ const updateMiddleware = require("../app/middleware/User/updateMiddleware");
 
 router.get("/getAll", UserController.getAllUser);
 router.get("/student", UserController.studentofTecher);
+router.get("/revenue-instructor", UserController.revenueOfInstructor);
+router.get(
+  "/reveneueInstructorByMonth",
+  UserController.reveneueInstructorByMonth
+);
 
 router.get("/:id", UserController.getUserById);
 router.get("/cart/getAll", UserController.getCarts);
 
 router.get("/:teacherId/sales", UserController.revenueTeacher);
+router.get("/progress-user/:courseId", UserController.getProgressTracker);
 
 router.post("/create", addMiddleware, UserController.addUser);
 router.post("/filter", UserController.filterUser);
@@ -18,6 +24,7 @@ router.post("/filter", UserController.filterUser);
 router.post("/addCart/:courseId", UserController.addToCart);
 
 router.put("/:id", updateMiddleware, UserController.updateUser);
+router.put("/progress/:courseId/:lectureId", UserController.progressTracker);
 
 router.delete("/:id", UserController.deleteUser);
 router.delete("/cart/:courseId", UserController.deleteCart);

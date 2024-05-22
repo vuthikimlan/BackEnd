@@ -8,6 +8,7 @@ const User = require("../models/Users");
 const { isValidObjectId } = require("mongoose");
 const { getIdUser } = require("../../service/getIdUser");
 const Order = require("../models/Order");
+const ProgressTracker = require("../models/ProgressTracker");
 
 class UserController {
   async addUser(req, res) {
@@ -354,11 +355,6 @@ class UserController {
     } catch (error) {}
   }
 
-  // Logic để thực hiện tính doanh thu của giảng viên
-  // Giảng viên A có id là 123
-  // Lấy chi tiết đơn hàng và trong đơn hàng đó kiểm tra
-  // xem khóa học có thuộc về giảng viên này không
-
   async revenueTeacher(req, res) {
     try {
       const teacherId = req.params.teacherId;
@@ -412,6 +408,204 @@ class UserController {
       });
     } catch (error) {
       console.log("error", error);
+    }
+  }
+
+  async revenueOfInstructor(req, res) {
+    try {
+      const teacherId = getIdUser(req);
+      let totalRevenue = 0;
+      let revenue = 0;
+
+      const order = await Order.find({ status: "completed" })
+        .populate("courses")
+        .populate({
+          path: "courses.createdBy",
+          select: "_id",
+        });
+
+      order.forEach((order) => {
+        // Lay khoa hoc cua tung don hang
+        const courses = order.courses;
+
+        // Loc ra khoa hoc cua giang vien
+        const teacherCourses = courses.filter((course) => {
+          return course.createdBy._id.toString() === teacherId;
+        });
+
+        // Loc ra khoa hoc trong truong price
+        const revenueCourses = order.price.filter((course) =>
+          teacherCourses.some((c) => c._id.equals(course.courseId))
+        );
+
+        // Tinh doanh thu mỗi đơn hàng
+        revenueCourses.forEach((course) => {
+          revenue += course.price;
+        });
+
+        totalRevenue += revenue;
+      });
+
+      // Tính doanh thu/số tiền thực tế mà giảng viên sẽ nhận được
+      const actualRevenue = totalRevenue * 0.8; // Trừ 20% phí của nền tảng
+
+      const user = await User.findById(teacherId);
+      user.teacher.pendingEarning = totalRevenue;
+      user.teacher.paidEarning = actualRevenue;
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        error: null,
+        statusCode: 200,
+        data: {
+          user: user,
+        },
+      });
+    } catch (error) {
+      console.log("error", error);
+    }
+  }
+
+  async reveneueInstructorByMonth(req, res) {
+    try {
+      const teacherId = getIdUser(req);
+      let revenue = 0;
+      let result = [];
+      const revenueByMonth = {
+        month: "",
+        pendingEarning: 0,
+        costDeduction: 0,
+        paidEarning: 0,
+      };
+      const orders = await Order.find({
+        status: "completed",
+      }).populate({
+        path: "courses",
+        select: "createdBy _id name image price discountedPrice",
+        populate: {
+          path: "createdBy",
+          select: "_id",
+        },
+      });
+
+      for (let order of orders) {
+        const month = order.orderDate.toLocaleDateString("en-GB", {
+          month: "2-digit",
+          year: "numeric",
+        });
+
+        const courses = order.courses;
+        const teacherCourses = courses.filter((course) => {
+          return course.createdBy._id.toString() === teacherId;
+        });
+        const revenueCourses = order.price.filter((course) =>
+          teacherCourses.some((c) => c._id.equals(course.courseId))
+        );
+
+        revenueCourses.forEach((course) => {
+          revenue += course.price;
+        });
+        revenueByMonth.month = month;
+        revenueByMonth.pendingEarning = revenue;
+        revenueByMonth.paidEarning = revenue * 0.8;
+        revenueByMonth.costDeduction = revenue * 0.2;
+      }
+      revenue = 0;
+      result.push(revenueByMonth);
+
+      res.status(200).json({
+        success: true,
+        error: null,
+        statusCode: 200,
+        data: result,
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async progressTracker(req, res) {
+    try {
+      const userId = getIdUser(req);
+      const { courseId, lectureId } = req.params;
+      const { completed } = req.body;
+
+      // Tim va cap nhat tien do hoc
+      let progressTracker = await ProgressTracker.findOne({
+        userId: userId,
+        courseId: courseId,
+      });
+      if (!progressTracker) {
+        progressTracker = new ProgressTracker({
+          userId: userId,
+          courseId: courseId,
+          completedLectures: [],
+        });
+      }
+      const existingLectures = progressTracker.completedLectures.find((l) =>
+        l.lectureId.equals(lectureId)
+      );
+
+      if (existingLectures) {
+        existingLectures.completed = completed;
+        existingLectures.completedAt = new Date();
+      } else {
+        progressTracker.completedLectures.push({
+          lectureId: lectureId,
+          completed: completed,
+          completedAt: new Date(),
+        });
+      }
+      await progressTracker.save();
+      res.status(200).json({
+        success: true,
+        message: "Progress updated successfully",
+        error: null,
+        statusCode: 200,
+        data: progressTracker,
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async getProgressTracker(req, res) {
+    try {
+      const userId = getIdUser(req);
+      const courseId = req.params.courseId;
+      const course = await Course.findById(courseId);
+      const totalLectures = course.parts.reduce(
+        (total, part) => total + part.lectures.length,
+        0
+      );
+
+      // Thong tin tien do hoc cua nguoi dung
+      const progress = await ProgressTracker.findOne({
+        userId: userId,
+        courseId: course._id,
+      });
+
+      const completedLectures = progress
+        ? progress.completedLectures.filter((l) => l.completed).length
+        : 0;
+
+      //  Tinh phan tram tien do
+      const progressPercentage = Math.round(
+        (completedLectures / totalLectures) * 100
+      );
+      res.status(200).json({
+        success: true,
+        message: "Progress updated successfully",
+        error: null,
+        statusCode: 200,
+        data: {
+          progressPercentage,
+          completedLectures: progress.completedLectures,
+        },
+      });
+    } catch (error) {
+      console.log(error);
     }
   }
 }

@@ -612,13 +612,6 @@ class PaymentController {
           revenueByMonth.pendingEarning += course.price;
           revenueByMonth.paidEarning += course.price * 0.8; // Giảng viên sẽ bị trừ phí cho hệ thống là 20% ==> giảng viên chỉ được nhận 80% doanh thu
         });
-        // revenueCourses.forEach((course) => {
-        //   if (!revenueByMonth) {
-        //     revenueByMonth = { pendingEarning: 0, paidEarning: 0 };
-        //   }
-        //   revenueByMonth.pendingEarning += course.price;
-        //   revenueByMonth.paidEarning = revenueByMonth.pendingEarning * 0.8; // Giảng viên sẽ bị trừ phí cho hệ thống là 20% ==> giảng viên chỉ được nhận 80% doanh thu
-        // });
       }
       result.push({
         teacher: {

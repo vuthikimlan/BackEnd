@@ -25,7 +25,7 @@ class ProfileController {
         })
         .populate({
           path: "order",
-          select: "_id courses totalPrice orderDate status ",
+          select: "_id courses price totalPrice orderDate status ",
           populate: {
             path: "courses",
             select: " name ",
