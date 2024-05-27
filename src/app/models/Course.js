@@ -16,6 +16,9 @@ const courseSchema = new Schema(
     description: {
       type: String,
     },
+    detailsCourse: {
+      type: String,
+    },
     image: {
       type: String,
     },
