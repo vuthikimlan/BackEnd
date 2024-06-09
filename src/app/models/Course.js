@@ -135,6 +135,10 @@ const courseSchema = new Schema(
       type: Number,
       default: 0,
     },
+    revenue: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

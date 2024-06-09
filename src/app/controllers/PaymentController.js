@@ -268,7 +268,6 @@ class PaymentController {
     // reqq.end();
     console.log("requestBody", requestBody);
   }
-
   // Tổng doanh thu của toàn bộ hệ thống theo ngày - tháng - năm
   async totalRevenueSystemsByDay(req, res) {
     const order = await Order.find({ status: "completed" });
@@ -446,7 +445,7 @@ class PaymentController {
   async revenueCourseByMonth(req, res) {
     try {
       const courseId = req.params.id;
-      let revenue = 0;
+
       const revenueByMonth = {};
 
       const order = await Order.find({ status: "completed" })
@@ -469,13 +468,16 @@ class PaymentController {
         const revenueCourses = order.price.filter((course) =>
           courses.some((c) => c._id.equals(course.courseId))
         );
-
+        let revenue = 0;
         revenueCourses.forEach((courses) => {
           if (courses.courseId.toString() === courseId) {
             revenue += courses.price;
           }
         });
-        revenueByMonth[month] = revenue;
+        if (!revenueByMonth[month]) {
+          revenueByMonth[month] = 0;
+        }
+        revenueByMonth[month] += revenue;
       });
 
       const data = Object.keys(revenueByMonth).map((key) => ({

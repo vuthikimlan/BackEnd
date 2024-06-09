@@ -1,8 +1,5 @@
 const { validationResult } = require("express-validator");
-const { default: mongoose } = require("mongoose");
-const {
-  Types: { ObjectId },
-} = require("mongoose");
+let moment = require("moment");
 const Course = require("../models/Course");
 const User = require("../models/Users");
 const { isValidObjectId } = require("mongoose");
@@ -482,25 +479,41 @@ class UserController {
 
   async reveneueInstructorByMonth(req, res) {
     try {
+      const { fromDate, toDate } = req.body;
+      const dateFrom = moment(fromDate, "MM/DD/YYYY").format("YYYY-MM-DD");
+      const dateTo = moment(toDate, "MM/DD/YYYY").format("YYYY-MM-DD");
+      let orders;
       const teacherId = getIdUser(req);
-      let revenue = 0;
-      let result = [];
-      const revenueByMonth = {
-        month: "",
-        pendingEarning: 0,
-        costDeduction: 0,
-        paidEarning: 0,
-      };
-      const orders = await Order.find({
-        status: "completed",
-      }).populate({
-        path: "courses",
-        select: "createdBy _id name image price discountedPrice",
-        populate: {
-          path: "createdBy",
-          select: "_id",
-        },
-      });
+
+      if (fromDate && toDate) {
+        orders = await Order.find({
+          createdAt: {
+            $gte: dateFrom,
+            $lte: dateTo,
+          },
+          status: "completed",
+        }).populate({
+          path: "courses",
+          select: "createdBy _id name image price discountedPrice",
+          populate: {
+            path: "createdBy",
+            select: "_id",
+          },
+        });
+      } else {
+        orders = await Order.find({
+          status: "completed",
+        }).populate({
+          path: "courses",
+          select: "createdBy _id name image price discountedPrice",
+          populate: {
+            path: "createdBy",
+            select: "_id",
+          },
+        });
+      }
+
+      const result = [];
 
       for (let order of orders) {
         const month = order.orderDate.toLocaleDateString("en-GB", {
@@ -516,16 +529,31 @@ class UserController {
           teacherCourses.some((c) => c._id.equals(course.courseId))
         );
 
+        let revenue = 0;
         revenueCourses.forEach((course) => {
           revenue += course.price;
         });
-        revenueByMonth.month = month;
-        revenueByMonth.pendingEarning = revenue;
-        revenueByMonth.paidEarning = revenue * 0.8;
-        revenueByMonth.costDeduction = revenue * 0.2;
+
+        const revenueByMonth = {
+          month,
+          pendingEarning: revenue,
+          paidEarning: revenue * 0.8,
+          costDeduction: revenue * 0.2,
+        };
+
+        const existingMonthIndex = result.findIndex(
+          (item) => item.month === month
+        );
+        if (existingMonthIndex !== -1) {
+          result[existingMonthIndex].pendingEarning +=
+            revenueByMonth.pendingEarning;
+          result[existingMonthIndex].paidEarning += revenueByMonth.paidEarning;
+          result[existingMonthIndex].costDeduction +=
+            revenueByMonth.costDeduction;
+        } else {
+          result.push(revenueByMonth);
+        }
       }
-      revenue = 0;
-      result.push(revenueByMonth);
 
       res.status(200).json({
         success: true,

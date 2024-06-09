@@ -7,10 +7,6 @@ const updateMiddleware = require("../app/middleware/User/updateMiddleware");
 router.get("/getAll", UserController.getAllUser);
 router.get("/student", UserController.studentofTecher);
 router.get("/revenue-instructor", UserController.revenueOfInstructor);
-router.get(
-  "/reveneueInstructorByMonth",
-  UserController.reveneueInstructorByMonth
-);
 
 router.get("/:id", UserController.getUserById);
 router.get("/cart/getAll", UserController.getCarts);
@@ -24,8 +20,11 @@ router.get(
 
 router.post("/create", addMiddleware, UserController.addUser);
 router.post("/filter", UserController.filterUser);
-
 router.post("/addCart/:courseId", UserController.addToCart);
+router.post(
+  "/reveneueInstructorByMonth",
+  UserController.reveneueInstructorByMonth
+);
 
 router.put("/:id", updateMiddleware, UserController.updateUser);
 router.put("/progress/:courseId/:lectureId", UserController.progressTracker);
