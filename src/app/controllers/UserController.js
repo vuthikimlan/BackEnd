@@ -9,6 +9,7 @@ const { isValidObjectId } = require("mongoose");
 const { getIdUser } = require("../../service/getIdUser");
 const Order = require("../models/Order");
 const ProgressTracker = require("../models/ProgressTracker");
+const e = require("express");
 
 class UserController {
   async addUser(req, res) {
@@ -259,9 +260,10 @@ class UserController {
     try {
       const { courseId } = req.params;
       const userId = getIdUser(req);
-      const user = await User.findById(userId);
+      const user = await User.findById(userId).populate("boughtCourses");
       let countCourses = 0;
 
+      // Kiểm tra khóa học đã được thêm vào giỏ hàng
       const existingCourse = user?.shoppingCart?.find(
         (item) => item.courseId.toString() === courseId
       );
@@ -269,6 +271,17 @@ class UserController {
       if (existingCourse) {
         return res.status(201).json({
           message: "Khóa học đã tồn tại trong giỏ hàng",
+        });
+      }
+
+      // Kiểm tra khóa học đã được mua
+      const isPurchased = user?.boughtCourses?.find(
+        (item) => item._id.toString() === courseId
+      );
+
+      if (isPurchased) {
+        return res.status(202).json({
+          message: "Khóa học đã được mua",
         });
       }
 
@@ -525,6 +538,7 @@ class UserController {
     }
   }
 
+  // Người dùng tích thủ công để tính tiến độ học
   async progressTracker(req, res) {
     try {
       const userId = getIdUser(req);
@@ -569,7 +583,7 @@ class UserController {
       console.log(error);
     }
   }
-
+  // Tính phần trăm tiến độ học của cá nhân người dùng
   async getProgressTracker(req, res) {
     try {
       const userId = getIdUser(req);
@@ -594,6 +608,53 @@ class UserController {
       const progressPercentage = Math.round(
         (completedLectures / totalLectures) * 100
       );
+      res.status(200).json({
+        success: true,
+        message: "Progress updated successfully",
+        error: null,
+        statusCode: 200,
+        data: {
+          progressPercentage,
+          completedLectures: progress.completedLectures,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  // Tính phần trăm tiến độ học của 1 list người dùng
+  async getProgressTrackerUser(req, res) {
+    try {
+      const userId = req.params.userId;
+      const courseId = req.params.courseId;
+      const course = await Course.findById(courseId);
+      const totalLectures = course.parts.reduce(
+        (total, part) => total + part.lectures.length,
+        0
+      );
+      let progressPercentage;
+
+      // Thong tin tien do hoc cua nguoi dung
+      const progress = await ProgressTracker.findOne({
+        userId: userId,
+        courseId: course._id,
+      });
+
+      const completedLectures = progress
+        ? progress.completedLectures.filter(
+            (l) => l.completed ?? false === true
+          ).length
+        : 0;
+
+      //  Tinh phan tram tien do
+      if (completedLectures === 0 || null) {
+        progressPercentage = 0;
+      } else {
+        progressPercentage = Math.round(
+          (completedLectures / totalLectures) * 100
+        );
+      }
       res.status(200).json({
         success: true,
         message: "Progress updated successfully",

@@ -556,10 +556,11 @@ class PaymentController {
       "_id name paymentMethod email "
     );
 
-    const { fromDate, toDate } = req.query;
+    const { fromDate, toDate } = req.body;
     const dateFrom = moment(fromDate, "MM/DD/YYYY").format("YYYY-MM-DD");
     const dateTo = moment(toDate, "MM/DD/YYYY").format("YYYY-MM-DD");
     let orders;
+
     if (fromDate && toDate) {
       orders = await Order.find({
         createdAt: {
@@ -588,13 +589,21 @@ class PaymentController {
       });
     }
     let result = [];
-    let month;
 
     for (let teacher of teachers) {
+      const currentMonth = new Date().toLocaleDateString("en-GB", {
+        month: "2-digit",
+        year: "numeric",
+      });
+      const revenueByMonth = {
+        month: currentMonth,
+        pendingEarning: 0,
+        costDeduction: 0,
+        paidEarning: 0,
+      };
       const { _id, name, email, paymentMethod } = teacher;
-      const revenueByMonth = { pendingEarning: 0, paidEarning: 0 };
       for (let order of orders) {
-        month = order.orderDate.toLocaleDateString("en-GB", {
+        const month = order.orderDate.toLocaleDateString("en-GB", {
           month: "2-digit",
           year: "numeric",
         });
@@ -608,10 +617,15 @@ class PaymentController {
         );
 
         // Tính tổng doanh thu cho giảng viên theo tháng
-        revenueCourses.forEach((course) => {
-          revenueByMonth.pendingEarning += course.price;
-          revenueByMonth.paidEarning += course.price * 0.8; // Giảng viên sẽ bị trừ phí cho hệ thống là 20% ==> giảng viên chỉ được nhận 80% doanh thu
-        });
+        if (revenueCourses.length > 0) {
+          revenueByMonth.month = month;
+          revenueCourses.forEach((course) => {
+            revenueByMonth.month = month;
+            revenueByMonth.pendingEarning += course.price;
+            revenueByMonth.paidEarning += course.price * 0.8; // Giảng viên sẽ bị trừ phí cho hệ thống là 20% ==> giảng viên chỉ được nhận 80% doanh thu
+            revenueByMonth.costDeduction += course.price * 0.2;
+          });
+        }
       }
       result.push({
         teacher: {
@@ -623,7 +637,7 @@ class PaymentController {
         revenueByMonth,
       });
     }
-    res.json({ month, data: result });
+    res.json({ data: result });
   }
 }
 

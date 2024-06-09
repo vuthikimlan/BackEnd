@@ -17,6 +17,10 @@ router.get("/cart/getAll", UserController.getCarts);
 
 router.get("/:teacherId/sales", UserController.revenueTeacher);
 router.get("/progress-user/:courseId", UserController.getProgressTracker);
+router.get(
+  "/progress/:userId/:courseId",
+  UserController.getProgressTrackerUser
+);
 
 router.post("/create", addMiddleware, UserController.addUser);
 router.post("/filter", UserController.filterUser);

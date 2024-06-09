@@ -98,33 +98,39 @@ class CourseController {
         req.body;
       const course = await Course.findById(courseId);
       const part = course.parts.id(partId);
-      const timeLecture = await getVideoDurationInSeconds(video);
-      const duration = Math.round((timeLecture / 60) * 100) / 100;
       const newLecture = {
         lectureName,
-        video,
+        // video,
         document,
-        duration,
+        // duration,
         descriptionLectures,
         isFree,
       };
 
-      part.lectures.push(newLecture);
-      const newTotalTimeLectures = part.lectures.reduce(
-        (total, currLecture) => total + currLecture.duration,
-        0
-      );
-      part.totalTimeLectures = newTotalTimeLectures;
-      part.totalLecturePart = part.lectures.length;
+      if (video) {
+        const timeLecture = await getVideoDurationInSeconds(video);
+        const duration = Math.round((timeLecture / 60) * 100) / 100;
+        newLecture.video = video;
+        newLecture.duration = duration;
+        part.lectures.push(newLecture);
+        const newTotalTimeLectures = part.lectures.reduce(
+          (total, currLecture) => total + currLecture.duration,
+          0
+        );
+        part.totalTimeLectures = newTotalTimeLectures;
+        part.totalLecturePart = part.lectures.length;
 
-      const newTotalTime = course.parts.reduce((total, part) => {
-        return total + part.totalTimeLectures;
-      }, 0);
+        const newTotalTime = course.parts.reduce((total, part) => {
+          return total + part.totalTimeLectures;
+        }, 0);
 
-      course.totalTimeCourse += newTotalTime;
-      course.totalLecture = course.parts.reduce((total, part) => {
-        return total + part.totalLecturePart;
-      }, 0);
+        course.totalTimeCourse += newTotalTime;
+        course.totalLecture = course.parts.reduce((total, part) => {
+          return total + part.totalLecturePart;
+        }, 0);
+      } else {
+        part.lectures.push(newLecture);
+      }
       await course.save();
       res.status(201).json({
         success: true,

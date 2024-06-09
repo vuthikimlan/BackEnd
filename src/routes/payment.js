@@ -17,10 +17,6 @@ router.get(
   PaymentController.totalRevenueInstructorByMonth
 );
 router.get(
-  "/revenueInstructorBymonth",
-  PaymentController.reveneueInstructorByMonth
-);
-router.get(
   "/total-revenue-system-year",
   PaymentController.totalRevenueSystemsByYear
 );
@@ -30,5 +26,9 @@ router.get("/revenueCourseByMonth/:id", PaymentController.revenueCourseByMonth);
 router.post("/create_payment_url", PaymentController.createPaymentWithVNPAY);
 router.post("/create_payment_momo", PaymentController.createPaymentWithMoMo);
 router.post("/revenueCourseByTime", PaymentController.revenueCourseByTime);
+router.post(
+  "/revenueInstructorBymonth",
+  PaymentController.reveneueInstructorByMonth
+);
 
 module.exports = router;
