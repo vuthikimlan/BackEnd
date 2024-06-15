@@ -226,7 +226,7 @@ class UserController {
       let filter = {};
 
       // So sánh không bằng nhau, có thể tìm với bất kỳ ký tự là viết hoa hay ko
-      if (name) filter.name = { $regex: new RegExp(name, "i") };
+      if (name) filter.name = { $regex: new RegExp(`.*${name}.*`, "i") };
       if (username) filter.username = { $regex: new RegExp(username, "i") };
       if (email) filter.email = { $regex: new RegExp(email, "i") };
       if (accountNumber)

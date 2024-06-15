@@ -2,12 +2,36 @@ const { default: mongoose } = require("mongoose");
 
 const Schema = mongoose.Schema;
 
+const optionSchema = new mongoose.Schema({
+  option: { type: String, required: true },
+  isCorrect: { type: Boolean, required: true },
+});
+
+const questionSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    required: true,
+    enum: ["multiple-choice", "open-ended"],
+  },
+  question: { type: String, required: true },
+  options: [optionSchema],
+  answer: { type: String },
+});
+
 const courseSchema = new Schema(
   {
     name: {
       type: String,
       required: true,
     },
+    assignments: [
+      {
+        nameAssignment: { type: String, required: true },
+        descriptionAssignment: { type: String, required: true },
+        dueDate: { type: Date, required: true },
+        questions: [questionSchema],
+      },
+    ],
     slug: {
       type: String,
       unique: true,
@@ -65,6 +89,23 @@ const courseSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    enrollment: [
+      {
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        courseId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Course",
+          required: true,
+        },
+        isActivated: { type: Boolean, default: false },
+        activationDate: { type: Date },
+        expirationDate: { type: Date },
+      },
+    ],
     parts: [
       {
         partName: {

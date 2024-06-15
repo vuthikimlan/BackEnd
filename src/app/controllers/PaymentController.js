@@ -4,6 +4,8 @@ const { getIdUser } = require("../../service/getIdUser");
 const Users = require("../models/Users");
 const Order = require("../models/Order");
 const Course = require("../models/Course");
+const { sendActivationEmail } = require("../../service/sendEmail");
+const { default: mongoose } = require("mongoose");
 
 // // "vnp_ReturnUrl": "http://localhost:3000/"
 
@@ -115,6 +117,7 @@ class PaymentController {
       if (rspCode === "00") {
         //Tìm kiếm khóa học trong đơn hàng của người dùng
         const courses = order?.courses;
+        let inforCourse;
 
         // Lưu khóa học đã mua vào boughtCourses của user
         const boughtCourse = await Users.findById(userId);
@@ -128,7 +131,7 @@ class PaymentController {
 
         // Thêm id của người dùng vào khóa học
         for (let course of courses) {
-          const inforCourse = await Course.findById(course._id);
+          inforCourse = await Course.findById(course._id);
 
           // tinh doanh thu cua khoa hoc khi thanh toan thanh cong
           const revenueCourse = order.price.filter((p) =>
@@ -139,7 +142,14 @@ class PaymentController {
             inforCourse.revenue += p.price;
           });
 
+          //Ghi danh người dùng để thực hiện kích hoạt khóa học
+          const newEnrollment = {
+            userId: userId,
+            courseId: course._id,
+          };
+
           inforCourse.users.push(userId);
+          inforCourse.enrollment.push(newEnrollment);
           inforCourse.numBought = inforCourse.users.length;
           await inforCourse.save();
         }
@@ -147,6 +157,11 @@ class PaymentController {
         // Cập nhật trạng thái đơn hàng thành hoàn thành
         await order.updateOne({ status: "completed" });
         await order.save();
+
+        // Gửi email kích hoạt khóa học
+        const activationLink = `http://localhost:3000/activate-course?userId=${userId}&courseId=${courseId}`;
+
+        await sendActivationEmail(inforCourse.name, activationLink, userId);
       } else {
         await order.updateOne({ status: "cancelled" });
       }

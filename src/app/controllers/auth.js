@@ -1,5 +1,6 @@
 const Users = require("../models/Users");
 const bcrypt = require("bcrypt");
+const { validationResult } = require("express-validator");
 const jwt = require("jsonwebtoken");
 
 class AuthController {
@@ -8,6 +9,17 @@ class AuthController {
     try {
       // Kiểm tra xem tài khoản đó có tồn tại hay không
       const existingUser = await Users.findOne({ username });
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(500).json({
+          error: {
+            errorList: errors.array(),
+            message: "Tham số không hợp lệ",
+            statusCode: 2,
+            success: false,
+          },
+        });
+      }
 
       if (existingUser) {
         const isMatched = bcrypt.compare(password, existingUser.password);
@@ -57,6 +69,17 @@ class AuthController {
       const { name, username, email, password, role } = req.body;
 
       // validate dữ liệu
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(200).json({
+          error: {
+            errorList: errors.array(),
+            message: "Tham số không hợp lệ",
+            statusCode: 2,
+            success: false,
+          },
+        });
+      }
 
       const hashedPassword = await bcrypt.hash(password, parseInt("10"));
       const newUser = new Users({
@@ -68,8 +91,6 @@ class AuthController {
       });
 
       const savedUser = await newUser.save();
-
-      // Verify email
 
       res.status(200).json({
         data: savedUser,

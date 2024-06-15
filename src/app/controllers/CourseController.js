@@ -449,6 +449,193 @@ class CourseController {
     }
   }
 
+  // Thêm mới bài tập
+  async addAssignment(req, res) {
+    try {
+      const courseId = req.params.courseId;
+      const assignmentData = req.body;
+
+      const course = await Course.findById(courseId);
+
+      // Check câu hỏi đã tồn tại hay chưa
+      const existingAssignment = course.assignments.find(
+        (assignment) =>
+          assignment.nameAssignment === assignmentData.nameAssignment
+      );
+      if (existingAssignment) {
+        return res
+          .status(400)
+          .json({ error: "Bài tập đã tồn tại trong khóa học này" });
+      }
+
+      const newAssignment = {
+        nameAssignment: assignmentData.nameAssignment,
+        descriptionAssignment: assignmentData.descriptionAssignment,
+        dueDate: assignmentData.dueDate,
+        questions: assignmentData.questions.map((question) => ({
+          type: question.type,
+          question: question.question,
+          options: question.options || [],
+          answer: question.answer || "",
+        })),
+      };
+
+      course.assignments.push(newAssignment);
+      await course.save();
+      res.status(200).json({
+        data: newAssignment,
+        error: null,
+        statusCode: 200,
+        success: true,
+      });
+    } catch (error) {
+      console.log("error", error);
+    }
+  }
+
+  // Cập nhật bài tập hoặc thêm mới câu hỏi trong bài tập
+  async updateAssignment(req, res) {
+    try {
+      const { courseId, assignmentId } = req.params;
+      const updatedAssignmentData = req.body;
+
+      const course = await Course.findById(courseId);
+      const assignment = course.assignments.id(assignmentId);
+
+      // Cập nhật thông tin bài tập
+      assignment.nameAssignment =
+        updatedAssignmentData.nameAssignment || assignment.nameAssignment;
+      assignment.descriptionAssignment =
+        updatedAssignmentData.descriptionAssignment ||
+        assignment.descriptionAssignment;
+      assignment.dueDate = updatedAssignmentData.dueDate || assignment.dueDate;
+
+      // Thêm câu hỏi mới vào mảng questions
+      if (updatedAssignmentData.questions) {
+        for (const question of updatedAssignmentData.questions) {
+          // Kiểm tra xem câu hỏi đã tồn tại hay chưa
+          const existingQuestion = assignment.questions.some(
+            (questions) => questions.question === question.question
+          );
+          if (existingQuestion) {
+            return res.status(400).json({
+              error: `Câu hỏi '${question.question}' đã tồn tại. Bạn có thể chỉnh sửa nó.`,
+            });
+          }
+          assignment.questions.push({
+            type: question.type,
+            question: question.question,
+            options: question.options || [],
+            answer: question.answer || "",
+          });
+        }
+      }
+      await course.save();
+      res.status(200).json({
+        data: assignment,
+        error: null,
+        statusCode: 200,
+        success: true,
+      });
+    } catch (error) {
+      console.log("error", error);
+    }
+  }
+
+  // Cập nhật nội dung option hoặc answer bên trong mỗi câu hỏi
+  async updateAssignmentQuestion(req, res) {
+    try {
+      const { courseId, assignmentId, questionId } = req.params;
+      const updatedQuestionData = req.body;
+      const course = await Course.findById(courseId);
+      const assignment = course.assignments.id(assignmentId);
+      const question = assignment.questions.id(questionId);
+
+      // Cập nhật thông tin câu hỏi
+      question.type = updatedQuestionData.type || question.type;
+      question.question = updatedQuestionData.question || question.question;
+      question.options = updatedQuestionData.options || question.options;
+      question.answer = updatedQuestionData.answer || question.answer;
+
+      // Thêm option mới vào mảng options
+      if (updatedQuestionData.newOption) {
+        question.options.push({
+          option: updatedQuestionData.newOption.option,
+          isCorrect: updatedQuestionData.newOption.isCorrect || false,
+        });
+      }
+
+      // Xóa option (nếu có)
+      if (updatedQuestionData.removeOption) {
+        question.options = question.options.filter(
+          (option) => option.option !== updatedQuestionData.removeOption
+        );
+      }
+
+      // Xóa answer (nếu có)
+      if (updatedQuestionData.removeAnswer) {
+        question.answer = "";
+      }
+
+      await course.save();
+
+      res.status(200).json({
+        data: assignment,
+        error: null,
+        statusCode: 200,
+        success: true,
+      });
+    } catch (error) {
+      console.log("error", error);
+    }
+  }
+
+  //Xóa câu hỏi
+  async deleteQuestion(req, res) {
+    try {
+      const { courseId, assignmentId, questionId } = req.params;
+      const course = await Course.findById(courseId);
+      const assignment = course.assignments.id(assignmentId);
+
+      // Xóa câu hỏi khỏi mảng questions
+      assignment.questions.pull(questionId);
+
+      await course.save();
+
+      res.status(200).json({
+        data: assignment,
+        error: null,
+        statusCode: 200,
+        success: true,
+      });
+    } catch (error) {
+      console.log("error", error);
+    }
+  }
+
+  // Xóa bài tập
+  async deleteAssignment(req, res) {
+    try {
+      const { courseId, assignmentId } = req.params;
+      const course = await Course.findById(courseId);
+      const assignment = course.assignments.id(assignmentId);
+
+      // Xóa bài tập khỏi mảng assignments
+      course.assignments.pull(assignmentId);
+
+      await course.save();
+
+      res.status(200).json({
+        data: assignment,
+        error: null,
+        statusCode: 200,
+        success: true,
+      });
+    } catch (error) {
+      console.log("error", error);
+    }
+  }
+
   async applyDiscount(req, res) {
     try {
       const { courseId } = req.params;
@@ -497,6 +684,63 @@ class CourseController {
       res.status(200).json({
         success: true,
         data: resetDiscount,
+      });
+    } catch (error) {
+      console.log("error", error);
+    }
+  }
+
+  // Kích hoạt khóa học sau khi mua thành công
+  async activateCourse(req, res) {
+    try {
+      const userId = req.query.userId;
+      const courseId = req.query.courseId;
+
+      const activationDate = new Date();
+      console.log("activationDate", activationDate);
+      const expirationDate = new Date(
+        activationDate.setFullYear(activationDate.getFullYear() + 1)
+      );
+
+      const course = await Course.findOne({
+        _id: courseId,
+        "enrollment.userId": userId,
+      });
+      const enrollment = course.enrollment.find(
+        (enroll) =>
+          enroll.userId.toString() === userId &&
+          enroll.courseId.toString() === courseId
+      );
+
+      if (!enrollment) {
+        return res.status(400).json({
+          success: false,
+          message: "Người dùng chưa ghi danh vào khóa học này",
+        });
+      }
+      if (enrollment.isActivated) {
+        return res.status(400).json({
+          success: false,
+          message: "Khóa học đã được kích hoạt",
+        });
+      }
+
+      const updatedCourse = await Course.findOneAndUpdate(
+        { _id: courseId, "enrollment._id": enrollment._id },
+        {
+          $set: {
+            "enrollment.$.isActivated": true,
+            "enrollment.$.activationDate": activationDate,
+            "enrollment.$.expirationDate": expirationDate,
+          },
+        },
+        { new: true }
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: "Khóa học đã được kích hoạt thành công",
+        course: updatedCourse,
       });
     } catch (error) {
       console.log("error", error);
